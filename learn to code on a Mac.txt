@@ -32,10 +32,10 @@ After a bit of back and forth these are the versions I have running:
 
 ## Setting up to run the code 
 
-1. I needed to run this: sudo apt install libpython3.7-dev
-2. That called for me to download a Java Dev kit. https://www.oracle.com/java/technologies/javase-jdk14-downloads.html
-3. brew install openssl
-3. Install the requirements with: pip install -r requirements.txt
+1. Add the following to ~/cd.zshrc file:
+	export LDFLAGS=-L/usr/local/opt/openssl/lib
+	export CPPFLAGS=-I/usr/local/opt/openssl/include
+2. Install the requirements with: pip install -r requirements.txt
 
 
 oh, wait, are you using python2 or 3, try it with python3 africanized_bee.py
