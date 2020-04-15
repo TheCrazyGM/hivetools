@@ -7,13 +7,13 @@ A short guide by Brian of London
 
 If there are steps missing... it's because I already had parts of this set up on my Mac. This isn't meant to be a comprehensive guide to coding, but a shorthand way for rusty coders to get up to speed with simple python scripts on the Hive blockchain.
 
-# Getting the code onto your machine
+## Getting the code onto your machine
 
 1. Get yourself a Github account
 2. Create a fork of the hivetools repository: https://github.com/TheCrazyGM/hivetools
 3. In a new directory clone that repository: git clone https://github.com/stoodkev/hive-keychain.git
 
-# Do you have python?
+## Do you have python?
 
 I do already have all of xCode installed, I think it is required but I'm not 100% sure.
 
@@ -25,8 +25,20 @@ https://brew.sh/
 
 I had a hard time getting Homebrew installed. For some reason it hangs trying to install Xcode command line tools. After a bit of faffing around I opened up Software Update and found an update waiting for command line tools. I hit update in the GUI. That took ages downloading 490MB, perhaps the command line version would have worked, but without a progress bar it was hard to know what was going on!
 
+After the Software Update and a reboot (it didn't tell me to but it needed it) back to running the Homebrew install.
 
-Setting up to run the code 
+After a bit of back and forth these are the versions I have running:
 
-1. 
+
+## Setting up to run the code 
+
+1. I needed to run this: sudo apt install libpython3.7-dev
+2. That called for me to download a Java Dev kit. https://www.oracle.com/java/technologies/javase-jdk14-downloads.html
+3. brew install openssl
+3. Install the requirements with: pip install -r requirements.txt
+
+
+oh, wait, are you using python2 or 3, try it with python3 africanized_bee.py
+12:59
+the f string formatting, i'm guessing it's trying to run under python2, in wich case you would also have to  install the requirements with pip3 install -r requirements.txt if you grabbed my git repo, if ti's just the gist, you would still have to install beem in pip3 install beem (edited) 
  
