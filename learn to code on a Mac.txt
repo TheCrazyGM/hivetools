@@ -11,7 +11,7 @@ If there are steps missing... it's because I already had parts of this set up on
 
 1. Get yourself a Github account
 2. Create a fork of the hivetools repository: https://github.com/TheCrazyGM/hivetools
-3. In a new directory clone that repository: git clone https://github.com/stoodkev/hive-keychain.git
+3. In a new directory clone that repository: git https://github.com/[yournamehere]/hivetools
 
 ## Do you have python?
 
