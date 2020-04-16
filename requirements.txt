@@ -1,5 +1,6 @@
 alembic==1.4.2
 appdirs==1.4.3
+autopep8==1.5.1
 beem==0.22.14
 certifi==2020.4.5.1
 chardet==3.0.4
@@ -13,6 +14,7 @@ idna==2.9
 Mako==1.1.2
 MarkupSafe==1.1.1
 prettytable==0.7.2
+pycodestyle==2.5.0
 pycryptodomex==3.9.7
 pylibscrypt==1.8.0
 python-dateutil==2.8.1
@@ -24,5 +26,6 @@ scrypt==0.8.13
 six==1.14.0
 SQLAlchemy==1.3.16
 steemengine==0.5.0
+tabulate==0.8.7
 urllib3==1.25.8
 websocket-client==0.57.0
