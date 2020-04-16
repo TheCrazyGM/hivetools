@@ -36,9 +36,3 @@ After a bit of back and forth these are the versions I have running:
 	export LDFLAGS=-L/usr/local/opt/openssl/lib
 	export CPPFLAGS=-I/usr/local/opt/openssl/include
 2. Install the requirements with: pip install -r requirements.txt
-
-
-oh, wait, are you using python2 or 3, try it with python3 africanized_bee.py
-12:59
-the f string formatting, i'm guessing it's trying to run under python2, in wich case you would also have to  install the requirements with pip3 install -r requirements.txt if you grabbed my git repo, if ti's just the gist, you would still have to install beem in pip3 install beem (edited) 
- 
