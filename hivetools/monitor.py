@@ -4,7 +4,9 @@ import dataset
 from beem import Steem
 from beem.blockchain import Blockchain
 
-watch = "brianoflondon"
+# Ask for user ID
+hive_id = input("Hive User ID: ")
+# hive_id = yournamehere # if you want to hard code it.
 
 hive = Steem(node='https://anyx.io')
 db = dataset.connect('sqlite:///mydatabase.db')
@@ -12,7 +14,7 @@ db = dataset.connect('sqlite:///mydatabase.db')
 # System Variables
 blockchain = Blockchain(steem_instance=hive)
 stream = blockchain.stream(opNames=['transfer'], raw_ops=False, threading=True, thread_num=4)
-table = db[watch]
+table = db[hive_id]
 
 
 # parse json data to SQL insert
@@ -30,7 +32,7 @@ def monitor():
     db.begin()
     # Read the live stream and filter out only transfers
     for post in stream:
-        if post["to"] == watch or post["from"] == watch:
+        if post["to"] == hive_id or post["from"] == hive_id:
             print(f"[Transaction Found from {post['from']} to {post['to']}]")
             update_db(post)
 
