@@ -4,7 +4,7 @@ import dataset
 from beem import Steem
 from beem.blockchain import Blockchain
 
-watch = "thecrazygm"
+watch = "brianoflondon"
 
 hive = Steem(node='https://anyx.io')
 db = dataset.connect('sqlite:///mydatabase.db')
