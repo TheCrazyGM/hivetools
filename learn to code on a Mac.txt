@@ -1,7 +1,7 @@
 # hivetools
 Misc Hive Utilities
 
-How to get these tools working on a Mac
+How to get these tools working on a Mac. A very rough guide.
 
 A short guide by Brian of London
 
