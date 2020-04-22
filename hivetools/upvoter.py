@@ -12,7 +12,7 @@ from beem.utils import construct_authorperm
 
 posting_key = os.environ["BOT"]
 REGEX = '(?<=^|(?<=[^a-zA-Z0-9-_\.]))@([A-Za-z]+[A-Za-z0-9]+)'
-botname = "thecrayzgm"
+botname = "thecrazygm"
 weight = 100
 
 hive = Hive(node=['https://api.hive.blog'], keys=posting_key)
