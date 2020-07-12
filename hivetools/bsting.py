@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-import getpass
+from getpass import getpass
 from pprint import pprint
 
 from beem import Steem
 from beem.account import Account
 from beem.wallet import Wallet
 
-active_wif = getpass.getpass(prompt='Active key: ')
+active_wif = getpass(prompt='Active key: ')
 
 hv = Steem(node="http://anyx.io", keys=[active_wif])
 w = Wallet(steem_instance=hv)

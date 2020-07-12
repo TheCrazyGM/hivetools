@@ -13,7 +13,8 @@ db = dataset.connect('sqlite:///mydatabase.db')
 
 # System Variables
 blockchain = Blockchain(steem_instance=hive)
-stream = blockchain.stream(opNames=['transfer'], raw_ops=False, threading=True, thread_num=4)
+stream = blockchain.stream(
+    opNames=['transfer'], raw_ops=False, threading=True, thread_num=4)
 table = db[hive_id]
 
 

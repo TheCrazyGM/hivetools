@@ -18,7 +18,8 @@ def claim_it(chain, mana):
     """Very simple Utility to claim HIVE and/or STEEM account tokens"""
 
     api = {"steem": "https://api.steemit.com", "hive": "https://api.hive.blog"}
-    wif = click.prompt("Enter private key", confirmation_prompt=False, hide_input=True)
+    wif = click.prompt("Enter private key",
+                       confirmation_prompt=False, hide_input=True)
     for network in chain:
         steem = Steem(node=api[network], keys=wif)
         set_shared_steem_instance(steem)
@@ -32,13 +33,16 @@ def claim_it(chain, mana):
         for i in range(tries):
             try:
                 if mana_human_readable > mana:
-                    click.echo(f"[Mana on {network} Before: %f RC]" % (mana_old["current_mana"] / 1e9))
+                    click.echo(f"[Mana on {network} Before: %f RC]" % (
+                        mana_old["current_mana"] / 1e9))
                     tx = steem.claim_account(creator=steemid, fee=None)
                     pprint(tx)
                     time.sleep(5)
                     mana_new = account.get_rc_manabar()
-                    click.echo(f"[Mana on {network} After: %f RC]" % (mana_new["current_mana"] / 1e9))
-                    rc_costs = mana_old["current_mana"] - mana_new["current_mana"]
+                    click.echo(f"[Mana on {network} After: %f RC]" % (
+                        mana_new["current_mana"] / 1e9))
+                    rc_costs = mana_old["current_mana"] - \
+                        mana_new["current_mana"]
                     click.echo("[Mana cost: %f RC]" % (rc_costs / 1e9))
                 else:
                     click.echo(
