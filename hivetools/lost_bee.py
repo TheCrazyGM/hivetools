@@ -5,7 +5,7 @@ from beemgraphenebase.account import PasswordKey
 from tabulate import tabulate
 
 hive_id = input("Hive User ID: ")
-brain_key = getpass(prompt='Master Password: ')
+brain_key = getpass(prompt="Master Password: ")
 
 roles = ["owner", "active", "posting", "memo"]
 data = []

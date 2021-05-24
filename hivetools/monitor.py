@@ -8,13 +8,14 @@ from beem.blockchain import Blockchain
 hive_id = input("Hive User ID: ")
 # hive_id = yournamehere # if you want to hard code it.
 
-hive = Steem(node='https://anyx.io')
-db = dataset.connect('sqlite:///mydatabase.db')
+hive = Steem(node="https://anyx.io")
+db = dataset.connect("sqlite:///mydatabase.db")
 
 # System Variables
 blockchain = Blockchain(steem_instance=hive)
 stream = blockchain.stream(
-    opNames=['transfer'], raw_ops=False, threading=True, thread_num=4)
+    opNames=["transfer"], raw_ops=False, threading=True, thread_num=4
+)
 table = db[hive_id]
 
 
@@ -24,7 +25,7 @@ def update_db(post):
         table.insert(dict(post))
         db.commit()
     except Exception as e:
-        print(f'[Error: {e} moving on]')
+        print(f"[Error: {e} moving on]")
         db.rollback()
 
 
