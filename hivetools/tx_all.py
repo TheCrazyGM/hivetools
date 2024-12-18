@@ -38,7 +38,7 @@ def wasp():
         balance = float(f"{b:.{p}f}")
         if balance > 0:
             print(f"[ Transfering {balance} of {symbol} to {send_to} ]")
-            sew.transfer(send_to, balance, symbol, memo="waspsting.py transfer")
+            sew.transfer(send_to, balance, symbol, memo="Automatic transfer")
             time.sleep(1)
     return None
 
