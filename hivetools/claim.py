@@ -8,8 +8,7 @@
 # ///
 
 import os
-import time
-from pprint import pprint
+from typing import Optional
 
 from beem import Hive
 from beem.account import Account
@@ -17,45 +16,52 @@ from beem.wallet import Wallet
 from dotenv import load_dotenv
 
 
-def claim_it(mana):
+def claim_account(mana_threshold: float = 10000) -> Optional[dict]:
+    """Claim HIVE account tokens if mana is sufficient."""
     load_dotenv()
-    """Very simple Utility to claim HIVE account tokens"""
-    api = "https://api.hive.blog"
-    wif = os.getenv("ACTIVE_WIF")
-    hive = Hive(node=api, keys=wif)
-    wallet = Wallet(blockchain_instance=hive)
-    hiveid = wallet.getAccountFromPrivateKey(wif)
-    account = Account(hiveid, blockchain_instance=hive)
-    mana_old = account.get_rc_manabar()
-    mana_human_readable = mana_old["current_mana"] / 1e9
-    tries = 2
-    for i in range(tries):
-        try:
-            if mana_human_readable > mana:
-                print(f"[Mana on hive Before: {mana_old['current_mana'] / 1e9:.6f} RC]")
-                tx = hive.claim_account(creator=hiveid, fee=None)
-                pprint(tx)
-                time.sleep(5)
-                mana_new = account.get_rc_manabar()
-                print(f"[Mana on hive After: {mana_new['current_mana'] / 1e9:.6f} RC]")
-                rc_costs = mana_old["current_mana"] - mana_new["current_mana"]
-                print(f"[Mana cost: {rc_costs / 1e9:.6f} RC]")
-            else:
-                print(
-                    f"[Skipping claim account: current mana of {mana_human_readable:.6f} lower than the set limit of {mana:.6f} hive]"
-                )
-                time.sleep(5)
-        except Exception as e:
-            print(f"[Error: {e} - Trying Again]")
-            time.sleep(2)
-            if i < tries - 1:
-                continue
-            else:
-                print("[Failed to claim]")
-        else:
-            break
+
+    try:
+        # Setup Hive connection
+        wif = os.getenv("ACTIVE_WIF")
+        if not wif:
+            raise ValueError("No active WIF found in environment")
+
+        hive = Hive(node="https://api.hive.blog", keys=wif)
+        wallet = Wallet(blockchain_instance=hive)
+        hiveid = wallet.getAccountFromPrivateKey(wif)
+        account = Account(hiveid, blockchain_instance=hive)
+
+        # Check mana
+        mana_data = account.get_rc_manabar()
+        mana_current = mana_data["current_mana"] / 1e9
+
+        if mana_current < mana_threshold:
+            print(f"Insufficient mana: {mana_current:.6f} (threshold: {mana_threshold:.6f})")
+            return None
+
+        # Log pre-claim mana
+        print(f"Mana before claim: {mana_current:.6f} RC")
+
+        # Attempt account claim
+        tx = hive.claim_account(creator=hiveid, fee=None)
+
+        # Log post-claim details
+        mana_after = account.get_rc_manabar()
+        mana_cost = (mana_data["current_mana"] - mana_after["current_mana"]) / 1e9
+        print(f"Mana after claim: {mana_after['current_mana'] / 1e9:.6f} RC")
+        print(f"Mana cost: {mana_cost:.6f} RC")
+
+        return tx
+
+    except Exception as e:
+        print(f"Claim account error: {e}")
+        return None
+
+
+def main():
+    mana_threshold = float(os.getenv("MANA", 10000))
+    claim_account(mana_threshold)
 
 
 if __name__ == "__main__":
-    mana = int(os.getenv("MANA", 10000))
-    claim_it(mana)
+    main()
