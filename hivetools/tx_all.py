@@ -11,7 +11,7 @@
 import os
 import time
 
-from beem import hive
+from beem import Hive
 from beem.wallet import Wallet
 from dotenv import load_dotenv
 from hiveengine.tokens import Tokens
@@ -24,10 +24,12 @@ def dump_all():
     ACTIVE_WIF = os.getenv("ACTIVE_WIF")
     send_to = input("Enter destination: ")
 
-    hv = hive(keys=[ACTIVE_WIF], nodes="https://api.hive.blog")
+    hv = Hive(keys=[ACTIVE_WIF], nodes="https://api.hive.blog")
     w = Wallet(blockchain_instance=hv)
+    print("[Getting all tokens]")
     t = Tokens()
     usr = w.getAccountFromPrivateKey(ACTIVE_WIF)
+    print(usr)
     hew = heWallet(account=usr, blockchain_instance=hv)
     tokens = hew.get_balances()
     for token in tokens:

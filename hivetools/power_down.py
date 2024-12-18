@@ -3,7 +3,7 @@ import os
 from datetime import datetime, timedelta
 from pprint import pprint
 
-from beem import Steem
+from beem import Hive
 from beem.account import Account
 from beem.wallet import Wallet
 from dotenv import load_dotenv
@@ -41,10 +41,10 @@ if __name__ == "__main__":
     active_wif = os.getenv("ACTIVE_WIF")
 
     # Set all sytem variables (steem connection, wallet, username, and account)
-    stm = Steem(node="https://api.steemit.com", keys=[active_wif], nobroadcast=True)
-    w = Wallet(steem_instance=stm)
+    hv = Hive(node="https://api.hive.blog", keys=[active_wif], nobroadcast=True)
+    w = Wallet(blockchain_instance=hv)
     usr = w.getAccountFromPrivateKey(active_wif)
-    a = Account(usr, steem_instance=stm)
+    a = Account(usr, blockchain_instance=hv)
 
     # Queue Metal Music Here
     kill_em_all()
