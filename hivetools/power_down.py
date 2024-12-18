@@ -41,7 +41,7 @@ if __name__ == "__main__":
     active_wif = os.getenv("ACTIVE_WIF")
 
     # Set all sytem variables (steem connection, wallet, username, and account)
-    hv = Hive(node="https://api.hive.blog", keys=[active_wif], nobroadcast=True)
+    hv = Hive(node="https://api.hive.blog", keys=[active_wif], nobroadcast=False)
     w = Wallet(blockchain_instance=hv)
     usr = w.getAccountFromPrivateKey(active_wif)
     a = Account(usr, blockchain_instance=hv)
