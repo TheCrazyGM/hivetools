@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
+import os
 from datetime import datetime, timedelta
-from getpass import getpass
 from pprint import pprint
 
 from beem import Steem
 from beem.account import Account
 from beem.wallet import Wallet
+from dotenv import load_dotenv
 
 
 def kill_the_power():
@@ -35,8 +36,9 @@ def kill_em_all():
 
 
 if __name__ == "__main__":
+    load_dotenv()
     # Ask the User for the Active Key to start the whole process
-    active_wif = getpass(prompt="Active key: ")
+    active_wif = os.getenv("ACTIVE_WIF")
 
     # Set all sytem variables (steem connection, wallet, username, and account)
     stm = Steem(node="https://api.steemit.com", keys=[active_wif], nobroadcast=True)
@@ -46,10 +48,4 @@ if __name__ == "__main__":
 
     # Queue Metal Music Here
     kill_em_all()
-    power_q = (
-        input("Would you like Power Down current available VESTS: y/n ")
-        .lower()
-        .strip()[0]
-    )
-    if power_q is "y":
-        kill_the_power()
+    kill_the_power()

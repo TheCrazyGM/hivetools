@@ -1,0 +1,12 @@
+[project]
+name = "hivetools"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "beem>=0.24.26",
+    "hiveengine>=0.2.2",
+    "python-dotenv>=1.0.1",
+    "steemengine>=0.5.3",
+]

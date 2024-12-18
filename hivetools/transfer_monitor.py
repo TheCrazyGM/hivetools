@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 
 import dataset
-from beem import Steem
+from beem import Hive
 from beem.blockchain import Blockchain
 
 # Ask for user ID
 hive_id = input("Hive User ID: ")
 # hive_id = yournamehere # if you want to hard code it.
 
-hive = Steem(node="https://anyx.io")
-db = dataset.connect("sqlite:///mydatabase.db")
+hive = Hive(node="https://api.hive.blog")
+db = dataset.connect("sqlite:///transactions.db")
 
 # System Variables
-blockchain = Blockchain(steem_instance=hive)
+blockchain = Blockchain(blockchain_instance=hive)
 stream = blockchain.stream(
     opNames=["transfer"], raw_ops=False, threading=True, thread_num=4
 )
