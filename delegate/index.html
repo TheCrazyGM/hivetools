@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Delegation Management</title>
+  <script src="https://unpkg.com/@hiveio/dhive@latest/dist/dhive.js"></script>
+  <script src="https://unpkg.com/sweetalert2@11"></script>
+</head>
+
+<body>
+  <h2>Hive Power Delegation</h2>
+
+  <form id="delegationForm">
+    <div>
+      <label for="fromAccount">From Account</label>
+      <input type="text" id="fromAccount" />
+      <p>Leave blank to use the default account in keychain</p>
+    </div>
+
+    <div>
+      <label for="toAccount">To Account</label>
+      <input type="text" id="toAccount" required />
+    </div>
+
+    <div>
+      <label for="hpAmount">HP Amount</label>
+      <input type="number" id="hpAmount" step="0.001" required />
+      <span>HP</span>
+      <div id="vestResult"></div>
+    </div>
+
+    <button type="submit">Submit Delegation</button>
+  </form>
+
+  <table id="delegationsTable">
+    <thead>
+      <tr>
+        <th>Delegatee</th>
+        <th>Amount</th>
+        <th>Expiration</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td colspan="4">Enter an account above to view delegations</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>About Delegations</h3>
+  <div>
+    <h4>Managing Delegations</h4>
+    <ul>
+      <li>To remove a delegation, set the amount to 0.</li>
+      <li>To change a delegation, enter the new total amount desired.</li>
+      <li>Increases to delegation is immediate.</li>
+      <li>Undelegated HP remains in limbo for 5 days.</li>
+    </ul>
+  </div>
+
+  <script src="delegate.js"></script>
+</body>
+
+</html>
