@@ -1,190 +1,201 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8">
-  <title>Hive Authority Management</title>
-  <script src="https://cdn.jsdelivr.net/npm/@hiveio/dhive/dist/dhive.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <meta charset="UTF-8" />
+    <title>Hive Authority Management</title>
+    <script src="https://cdn.jsdelivr.net/npm/@hiveio/dhive/dist/dhive.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 
 <body>
-  <h1>Hive Authority Management</h1>
+    <h1>Hive Authority Management</h1>
 
-  <form id="accountForm">
-    <input type="text" id="accountName" placeholder="Enter Hive Account" required>
-    <button type="submit">View Authorities</button>
-  </form>
+    <form id="accountForm">
+        <input type="text" id="accountName" placeholder="Enter Hive Account" required />
+        <button type="submit">View Authorities</button>
+    </form>
 
-  <div id="authorityDisplay" style="display:none;">
-    <h2>Posting Authorities</h2>
-    <button onclick="toggleAddForm('posting')">Add Posting Authority</button>
-    <div id="postingAuthList"></div>
+    <div id="authorityDisplay" style="display: none">
+        <h2>Posting Authorities</h2>
+        <button onclick="toggleAddForm('posting')">Add Posting Authority</button>
+        <div id="postingAuthList"></div>
 
-    <h2>Active Authorities</h2>
-    <button onclick="toggleAddForm('active')">Add Active Authority</button>
-    <div id="activeAuthList"></div>
-  </div>
+        <h2>Active Authorities</h2>
+        <button onclick="toggleAddForm('active')">Add Active Authority</button>
+        <div id="activeAuthList"></div>
+    </div>
 
-  <div id="addPostingForm" style="display:none;">
-    <h3>Add Posting Authority</h3>
-    <input type="text" id="newPostingAccount" placeholder="Account Name">
-    <input type="number" id="newPostingWeight" value="1" min="1">
-    <button onclick="submitNewAuthority('posting')">Submit</button>
-  </div>
+    <div id="addPostingForm" style="display: none">
+        <h3>Add Posting Authority</h3>
+        <input type="text" id="newPostingAccount" placeholder="Account Name" />
+        <input type="number" id="newPostingWeight" value="1" min="1" />
+        <button onclick="submitNewAuthority('posting')">Submit</button>
+    </div>
 
-  <div id="addActiveForm" style="display:none;">
-    <h3>Add Active Authority</h3>
-    <input type="text" id="newActiveAccount" placeholder="Account Name">
-    <input type="number" id="newActiveWeight" value="1" min="1">
-    <button onclick="submitNewAuthority('active')">Submit</button>
-  </div>
+    <div id="addActiveForm" style="display: none">
+        <h3>Add Active Authority</h3>
+        <input type="text" id="newActiveAccount" placeholder="Account Name" />
+        <input type="number" id="newActiveWeight" value="1" min="1" />
+        <button onclick="submitNewAuthority('active')">Submit</button>
+    </div>
 
-  <script>
-    // Toast function
-    function showToast(message, type) {
-      Swal.fire({
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 3000,
-        icon: type,
-        text: message
-      });
-    }
+    <script>
+        // Toast function
+        function showToast(message, type) {
+            Swal.fire({
+                toast: true,
+                position: "top-end",
+                showConfirmButton: false,
+                timer: 3000,
+                icon: type,
+                text: message,
+            });
+        }
 
-    // Initialize dhive client
-    const client = new dhive.Client([
-      "https://api.hive.blog",
-      "https://api.hivekings.com",
-      "https://api.openhive.network"
-    ]);
+        // Initialize dhive client
+        const client = new dhive.Client([
+            "https://api.hive.blog",
+            "https://api.hivekings.com",
+            "https://api.openhive.network",
+        ]);
 
-    let currentAccount = "";
+        let currentAccount = "";
 
-    // Function to display authority list
-    function displayAuthorityList(authority, type) {
-      const listElement = document.getElementById(`${type}AuthList`);
-      listElement.innerHTML = "";
+        // Function to display authority list
+        function displayAuthorityList(authority, type) {
+            const listElement = document.getElementById(`${type}AuthList`);
+            listElement.innerHTML = "";
 
-      const accountAuths = authority.account_auths || [];
-      const keyAuths = authority.key_auths || [];
+            const accountAuths = authority.account_auths || [];
+            const keyAuths = authority.key_auths || [];
 
-      if (accountAuths.length === 0 && keyAuths.length === 0) {
-        listElement.innerHTML = `<p>No ${type} authorities found</p>`;
-        return;
-      }
+            if (accountAuths.length === 0 && keyAuths.length === 0) {
+                listElement.innerHTML = `<p>No ${type} authorities found</p>`;
+                return;
+            }
 
-      accountAuths.forEach(([account, weight]) => {
-        const item = document.createElement("div");
-        item.innerHTML = `
+            accountAuths.forEach(([account, weight]) => {
+                const item = document.createElement("div");
+                item.innerHTML = `
                     @${account} (Weight: ${weight})
                     <button onclick="removeAuthority('${account}', '${type}')">Remove</button>
                 `;
-        listElement.appendChild(item);
-      });
+                listElement.appendChild(item);
+            });
 
-      keyAuths.forEach(([key, weight]) => {
-        const item = document.createElement("div");
-        item.innerHTML = `
+            keyAuths.forEach(([key, weight]) => {
+                const item = document.createElement("div");
+                item.innerHTML = `
                     ${key.substring(0, 8)}...${key.substring(key.length - 8)} (Weight: ${weight})
                 `;
-        listElement.appendChild(item);
-      });
-    }
-
-    // Function to fetch authorities
-    async function fetchAuthorities(account) {
-      try {
-        account = account.toLowerCase();
-        currentAccount = account;
-
-        const accountData = await client.database.getAccounts([account]);
-
-        if (!accountData || accountData.length === 0) {
-          showToast(`Account @${account} not found`, "error");
-          return;
+                listElement.appendChild(item);
+            });
         }
 
-        const {posting, active} = accountData[0];
-        document.getElementById("authorityDisplay").style.display = "block";
+        // Function to fetch authorities
+        async function fetchAuthorities(account) {
+            try {
+                account = account.toLowerCase();
+                currentAccount = account;
 
-        displayAuthorityList(posting, "posting");
-        displayAuthorityList(active, "active");
-      } catch (error) {
-        console.error("Error fetching authorities:", error);
-        showToast("Error fetching authorities", "error");
-      }
-    }
+                const accountData = await client.database.getAccounts([account]);
 
-    // Function to toggle add authority form
-    function toggleAddForm(type) {
-      const form = document.getElementById(`add${type.charAt(0).toUpperCase() + type.slice(1)}Form`);
-      form.style.display = form.style.display === "none" ? "block" : "none";
-    }
+                if (!accountData || accountData.length === 0) {
+                    showToast(`Account @${account} not found`, "error");
+                    return;
+                }
 
-    // Function to submit new authority
-    async function submitNewAuthority(type) {
-      const accountInput = document.getElementById(`new${type.charAt(0).toUpperCase() + type.slice(1)}Account`);
-      const weightInput = document.getElementById(`new${type.charAt(0).toUpperCase() + type.slice(1)}Weight`);
+                const {
+                    posting,
+                    active
+                } = accountData[0];
+                document.getElementById("authorityDisplay").style.display = "block";
 
-      const account = accountInput.value.trim().toLowerCase();
-      const weight = parseInt(weightInput.value);
-
-      if (!window.hive_keychain) {
-        showToast("Hive Keychain is required", "error");
-        return;
-      }
-
-      window.hive_keychain.requestAddAccountAuthority(
-        currentAccount,
-        account,
-        type,
-        weight,
-        (response) => {
-          if (response.success) {
-            toggleAddForm(type);
-            accountInput.value = "";
-            weightInput.value = "1";
-            showToast("Authority added successfully", "success");
-            fetchAuthorities(currentAccount);
-          } else {
-            showToast(`Error: ${response.message}`, "error");
-          }
+                displayAuthorityList(posting, "posting");
+                displayAuthorityList(active, "active");
+            } catch (error) {
+                console.error("Error fetching authorities:", error);
+                showToast("Error fetching authorities", "error");
+            }
         }
-      );
-    }
 
-    // Function to remove authority
-    async function removeAuthority(account, type) {
-      if (!window.hive_keychain) {
-        showToast("Hive Keychain is required", "error");
-        return;
-      }
-
-      window.hive_keychain.requestRemoveAccountAuthority(
-        currentAccount,
-        account,
-        type,
-        (response) => {
-          if (response.success) {
-            showToast("Authority removed successfully", "success");
-            fetchAuthorities(currentAccount);
-          } else {
-            showToast(`Error: ${response.message}`, "error");
-          }
+        // Function to toggle add authority form
+        function toggleAddForm(type) {
+            const form = document.getElementById(
+                `add${type.charAt(0).toUpperCase() + type.slice(1)}Form`,
+            );
+            form.style.display = form.style.display === "none" ? "block" : "none";
         }
-      );
-    }
 
-    // Event listener for form submission
-    document.getElementById("accountForm").addEventListener("submit", (event) => {
-      event.preventDefault();
-      const accountInput = document.getElementById("accountName");
-      currentAccount = accountInput.value.trim();
-      fetchAuthorities(currentAccount);
-    });
-  </script>
+        // Function to submit new authority
+        async function submitNewAuthority(type) {
+            const accountInput = document.getElementById(
+                `new${type.charAt(0).toUpperCase() + type.slice(1)}Account`,
+            );
+            const weightInput = document.getElementById(
+                `new${type.charAt(0).toUpperCase() + type.slice(1)}Weight`,
+            );
+
+            const account = accountInput.value.trim().toLowerCase();
+            const weight = parseInt(weightInput.value);
+
+            if (!window.hive_keychain) {
+                showToast("Hive Keychain is required", "error");
+                return;
+            }
+
+            window.hive_keychain.requestAddAccountAuthority(
+                currentAccount,
+                account,
+                type,
+                weight,
+                (response) => {
+                    if (response.success) {
+                        toggleAddForm(type);
+                        accountInput.value = "";
+                        weightInput.value = "1";
+                        showToast("Authority added successfully", "success");
+                        fetchAuthorities(currentAccount);
+                    } else {
+                        showToast(`Error: ${response.message}`, "error");
+                    }
+                },
+            );
+        }
+
+        // Function to remove authority
+        async function removeAuthority(account, type) {
+            if (!window.hive_keychain) {
+                showToast("Hive Keychain is required", "error");
+                return;
+            }
+
+            window.hive_keychain.requestRemoveAccountAuthority(
+                currentAccount,
+                account,
+                type,
+                (response) => {
+                    if (response.success) {
+                        showToast("Authority removed successfully", "success");
+                        fetchAuthorities(currentAccount);
+                    } else {
+                        showToast(`Error: ${response.message}`, "error");
+                    }
+                },
+            );
+        }
+
+        // Event listener for form submission
+        document
+            .getElementById("accountForm")
+            .addEventListener("submit", (event) => {
+                event.preventDefault();
+                const accountInput = document.getElementById("accountName");
+                currentAccount = accountInput.value.trim();
+                fetchAuthorities(currentAccount);
+            });
+    </script>
 </body>
 
 </html>

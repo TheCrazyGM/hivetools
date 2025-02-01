@@ -1,109 +1,125 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8">
-  <title>Hive Power Delegation</title>
-  <script src="https://cdn.jsdelivr.net/npm/@hiveio/dhive/dist/dhive.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <meta charset="UTF-8" />
+    <title>Hive Power Delegation</title>
+    <script src="https://cdn.jsdelivr.net/npm/@hiveio/dhive/dist/dhive.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 
 <body>
-  <h1>Hive Power Delegation</h1>
+    <h1>Hive Power Delegation</h1>
 
-  <form id="delegationForm">
-    <input type="text" id="fromAccount" placeholder="From Account (optional)">
-    <input type="text" id="toAccount" placeholder="To Account" required>
-    <input type="number" id="hpAmount" placeholder="HP Amount" step="0.001" required>
-    <button type="submit">Submit Delegation</button>
-  </form>
+    <form id="delegationForm">
+        <input type="text" id="fromAccount" placeholder="From Account (optional)" />
+        <input type="text" id="toAccount" placeholder="To Account" required />
+        <input type="number" id="hpAmount" placeholder="HP Amount" step="0.001" required />
+        <button type="submit">Submit Delegation</button>
+    </form>
 
-  <div id="vestResult"></div>
+    <div id="vestResult"></div>
 
-  <table id="delegationsTable">
-    <thead>
-      <tr>
-        <th>Delegatee</th>
-        <th>Amount</th>
-        <th>Expiration</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td colspan="4">Enter an account to view delegations</td>
-      </tr>
-    </tbody>
-  </table>
+    <table id="delegationsTable">
+        <thead>
+            <tr>
+                <th>Delegatee</th>
+                <th>Amount</th>
+                <th>Expiration</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td colspan="4">Enter an account to view delegations</td>
+            </tr>
+        </tbody>
+    </table>
 
-  <script>
-    // Toast function
-    function showToast(message, type) {
-      Swal.fire({
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 3000,
-        icon: type,
-        text: message
-      });
-    }
-
-    // Initialize dhive client
-    const client = new dhive.Client([
-      "https://api.hive.blog",
-      "https://api.hivekings.com",
-      "https://anyx.io"
-    ]);
-
-    // Convert HP to VESTS
-    async function getVestFromHP(hp) {
-      try {
-        const globalProps = await client.database.getDynamicGlobalProperties();
-        const totalVests = parseFloat(globalProps.total_vesting_shares.split(" ")[0]);
-        const totalHP = parseFloat(globalProps.total_vesting_fund_hive.split(" ")[0]);
-        const vests = (hp * totalVests) / totalHP;
-        return vests.toFixed(6);
-      } catch (error) {
-        console.error("Error converting HP to VESTS:", error);
-        return null;
-      }
-    }
-
-    // Convert VESTS to HP
-    async function getHPFromVests(vests) {
-      try {
-        const globalProps = await client.database.getDynamicGlobalProperties();
-        const totalVests = parseFloat(globalProps.total_vesting_shares.split(" ")[0]);
-        const totalHP = parseFloat(globalProps.total_vesting_fund_hive.split(" ")[0]);
-        const hp = (vests * totalHP) / totalVests;
-        return hp.toFixed(3);
-      } catch (error) {
-        console.error("Error converting VESTS to HP:", error);
-        return null;
-      }
-    }
-
-    // Load delegations
-    async function loadDelegations(account) {
-      try {
-        account = account.toLowerCase();
-        const delegations = await client.database.call("get_vesting_delegations", [account, "", 100]);
-        const tbody = document.querySelector("#delegationsTable tbody");
-        tbody.innerHTML = "";
-
-        if (delegations.length === 0) {
-          const row = tbody.insertRow();
-          row.innerHTML = '<td colspan="4" class="text-center">No active delegations</td>';
-          return;
+    <script>
+        // Toast function
+        function showToast(message, type) {
+            Swal.fire({
+                toast: true,
+                position: "top-end",
+                showConfirmButton: false,
+                timer: 3000,
+                icon: type,
+                text: message,
+            });
         }
 
-        for (const delegation of delegations) {
-          const hp = await getHPFromVests(parseFloat(delegation.vesting_shares.split(" ")[0]));
-          if (!hp) continue;
+        // Initialize dhive client
+        const client = new dhive.Client([
+            "https://api.hive.blog",
+            "https://api.hivekings.com",
+            "https://anyx.io",
+        ]);
 
-          const row = tbody.insertRow();
-          row.innerHTML = `
+        // Convert HP to VESTS
+        async function getVestFromHP(hp) {
+            try {
+                const globalProps =
+                    await client.database.getDynamicGlobalProperties();
+                const totalVests = parseFloat(
+                    globalProps.total_vesting_shares.split(" ")[0],
+                );
+                const totalHP = parseFloat(
+                    globalProps.total_vesting_fund_hive.split(" ")[0],
+                );
+                const vests = (hp * totalVests) / totalHP;
+                return vests.toFixed(6);
+            } catch (error) {
+                console.error("Error converting HP to VESTS:", error);
+                return null;
+            }
+        }
+
+        // Convert VESTS to HP
+        async function getHPFromVests(vests) {
+            try {
+                const globalProps =
+                    await client.database.getDynamicGlobalProperties();
+                const totalVests = parseFloat(
+                    globalProps.total_vesting_shares.split(" ")[0],
+                );
+                const totalHP = parseFloat(
+                    globalProps.total_vesting_fund_hive.split(" ")[0],
+                );
+                const hp = (vests * totalHP) / totalVests;
+                return hp.toFixed(3);
+            } catch (error) {
+                console.error("Error converting VESTS to HP:", error);
+                return null;
+            }
+        }
+
+        // Load delegations
+        async function loadDelegations(account) {
+            try {
+                account = account.toLowerCase();
+                const delegations = await client.database.call(
+                    "get_vesting_delegations",
+                    [account, "", 100],
+                );
+                const tbody = document.querySelector("#delegationsTable tbody");
+                tbody.innerHTML = "";
+
+                if (delegations.length === 0) {
+                    const row = tbody.insertRow();
+                    row.innerHTML =
+                        '<td colspan="4" class="text-center">No active delegations</td>';
+                    return;
+                }
+
+                for (const delegation of delegations) {
+                    const hp = await getHPFromVests(
+                        parseFloat(delegation.vesting_shares.split(" ")[0]),
+                    );
+                    if (!hp) continue;
+
+                    const row = tbody.insertRow();
+                    row.innerHTML = `
                         <td>@${delegation.delegatee}</td>
                         <td>${hp} HP</td>
                         <td>${new Date(delegation.min_delegation_time).toLocaleString()}</td>
@@ -112,93 +128,109 @@
                             <button onclick="removeDelegation('${delegation.delegatee}')">Remove</button>
                         </td>
                     `;
-        }
-      } catch (error) {
-        console.error("Error loading delegations:", error);
-        showToast("Error loading delegations", "error");
-      }
-    }
-
-    // Modify delegation
-    function modifyDelegation(account) {
-      document.getElementById("toAccount").value = account;
-      document.getElementById("hpAmount").focus();
-    }
-
-    // Remove delegation
-    function removeDelegation(account) {
-      document.getElementById("toAccount").value = account;
-      document.getElementById("hpAmount").value = "0";
-      document.getElementById("delegationForm").dispatchEvent(new Event("submit"));
-    }
-
-    // HP Amount input event
-    document.getElementById("hpAmount").addEventListener("input", async (e) => {
-      const hp = parseFloat(e.target.value || 0);
-      const vestResult = document.getElementById("vestResult");
-
-      if (hp > 0) {
-        const vests = await getVestFromHP(hp);
-        vestResult.textContent = vests ? `Equivalent VESTS: ${vests}` : "Unable to convert";
-      } else {
-        vestResult.textContent = "";
-      }
-    });
-
-    // Form submission
-    document.getElementById("delegationForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      const fromAccount = document.getElementById("fromAccount").value.trim().toLowerCase();
-      const toAccount = document.getElementById("toAccount").value.trim().toLowerCase();
-      const hpAmount = parseFloat(document.getElementById("hpAmount").value);
-
-      if (!window.hive_keychain) {
-        showToast("Hive Keychain is not installed", "error");
-        return;
-      }
-
-      if (isNaN(hpAmount) || hpAmount < 0) {
-        showToast("Please enter a valid HP amount", "error");
-        return;
-      }
-
-      try {
-        const formattedHP = hpAmount.toFixed(3);
-        const vests = await getVestFromHP(formattedHP);
-        const effectiveFromAccount = fromAccount || null;
-
-        if (!vests) throw new Error("Failed to convert HP to VESTS");
-
-        window.hive_keychain.requestDelegation(
-          effectiveFromAccount,
-          toAccount,
-          formattedHP,
-          "HP",
-          async (response) => {
-            if (response.success) {
-              showToast("Delegation successful!", "success");
-              document.getElementById("delegationForm").reset();
-              document.getElementById("vestResult").textContent = "";
-              await loadDelegations(fromAccount);
-            } else {
-              showToast(`Error: ${response.message}`, "error");
+                }
+            } catch (error) {
+                console.error("Error loading delegations:", error);
+                showToast("Error loading delegations", "error");
             }
-          }
-        );
-      } catch (error) {
-        showToast(`Error: ${error.message}`, "error");
-      }
-    });
+        }
 
-    // From Account input event
-    document.getElementById("fromAccount").addEventListener("input", (e) => {
-      const account = e.target.value.toLowerCase();
-      if (account && account.length >= 3) {
-        loadDelegations(account);
-      }
-    });
-  </script>
+        // Modify delegation
+        function modifyDelegation(account) {
+            document.getElementById("toAccount").value = account;
+            document.getElementById("hpAmount").focus();
+        }
+
+        // Remove delegation
+        function removeDelegation(account) {
+            document.getElementById("toAccount").value = account;
+            document.getElementById("hpAmount").value = "0";
+            document
+                .getElementById("delegationForm")
+                .dispatchEvent(new Event("submit"));
+        }
+
+        // HP Amount input event
+        document
+            .getElementById("hpAmount")
+            .addEventListener("input", async (e) => {
+                const hp = parseFloat(e.target.value || 0);
+                const vestResult = document.getElementById("vestResult");
+
+                if (hp > 0) {
+                    const vests = await getVestFromHP(hp);
+                    vestResult.textContent = vests ?
+                        `Equivalent VESTS: ${vests}` :
+                        "Unable to convert";
+                } else {
+                    vestResult.textContent = "";
+                }
+            });
+
+        // Form submission
+        document
+            .getElementById("delegationForm")
+            .addEventListener("submit", async (e) => {
+                e.preventDefault();
+
+                const fromAccount = document
+                    .getElementById("fromAccount")
+                    .value.trim()
+                    .toLowerCase();
+                const toAccount = document
+                    .getElementById("toAccount")
+                    .value.trim()
+                    .toLowerCase();
+                const hpAmount = parseFloat(
+                    document.getElementById("hpAmount").value,
+                );
+
+                if (!window.hive_keychain) {
+                    showToast("Hive Keychain is not installed", "error");
+                    return;
+                }
+
+                if (isNaN(hpAmount) || hpAmount < 0) {
+                    showToast("Please enter a valid HP amount", "error");
+                    return;
+                }
+
+                try {
+                    const formattedHP = hpAmount.toFixed(3);
+                    const vests = await getVestFromHP(formattedHP);
+                    const effectiveFromAccount = fromAccount || null;
+
+                    if (!vests) throw new Error("Failed to convert HP to VESTS");
+
+                    window.hive_keychain.requestDelegation(
+                        effectiveFromAccount,
+                        toAccount,
+                        formattedHP,
+                        "HP",
+                        async (response) => {
+                            if (response.success) {
+                                showToast("Delegation successful!", "success");
+                                document.getElementById("delegationForm").reset();
+                                document.getElementById("vestResult").textContent = "";
+                                await loadDelegations(fromAccount);
+                            } else {
+                                showToast(`Error: ${response.message}`, "error");
+                            }
+                        },
+                    );
+                } catch (error) {
+                    showToast(`Error: ${error.message}`, "error");
+                }
+            });
+
+        // From Account input event
+        document.getElementById("fromAccount").addEventListener("input", (e) => {
+            const account = e.target.value.toLowerCase();
+            if (account && account.length >= 3) {
+                loadDelegations(account);
+            }
+        });
+    </script>
 </body>
 
 </html>
