@@ -1,6 +1,15 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --quiet --script
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "beem",
+#     "python-dotenv",
+# ]
+# ///
+
+
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from pprint import pprint
 
 from beem import Hive
@@ -12,7 +21,7 @@ from dotenv import load_dotenv
 def kill_the_power():
     # Get all availble VESTS to powerdown right now and make it into a string that the withdraw can handle
     avail_vests = a.get_effective_vesting_shares()
-    vests_str = f"{avail_vests/ 1e6} VESTS"
+    vests_str = f"{avail_vests / 1e6} VESTS"
     print(f"[Powering Down {vests_str}]")
     pprint(a.withdraw_vesting(vests_str))
 

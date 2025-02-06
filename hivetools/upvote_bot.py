@@ -1,4 +1,12 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --quiet --script
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "beem",
+#     "python-dotenv",
+# ]
+# ///
+
 
 import os
 import re
@@ -10,7 +18,7 @@ from beem.comment import Comment
 from beem.instance import set_shared_blockchain_instance
 from beem.utils import construct_authorperm
 
-posting_key = os.environ["BOT"]
+posting_key = os.environ["POSTING_WIF"]
 REGEX = "(?<=^|(?<=[^a-zA-Z0-9-_\.]))@([A-Za-z]+[A-Za-z0-9]+)"
 botname = "thecrazygm"
 weight = 100
@@ -22,7 +30,7 @@ followees = Account(botname).get_following()
 
 
 def summon_upvotebot():
-    print(f"[Starting up]")
+    print("[Starting up]")
     while True:
         try:
             for post in chain.stream(opNames="comment", threading=True, thread_num=5):

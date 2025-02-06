@@ -1,3 +1,13 @@
+#!/usr/bin/env -S uv run --quiet --script
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "beem",
+#     "python-dotenv",
+# ]
+# ///
+
+
 from beem import Hive
 from beem.account import Account
 from beem.comment import Comment

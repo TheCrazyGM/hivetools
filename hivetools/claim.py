@@ -8,48 +8,74 @@
 # ///
 
 import os
-from typing import Optional
+from typing import Optional, Tuple
 
 from beem import Hive
 from beem.account import Account
+from beem.constants import resource_execution_time
+from beem.rc import RC
 from beem.wallet import Wallet
 from dotenv import load_dotenv
 
 
-def claim_account(mana_threshold: float = 10000) -> Optional[dict]:
-    """Claim HIVE account tokens if mana is sufficient."""
-    load_dotenv()
+def setup_hive() -> Tuple[Hive, Account]:
+    """Setup Hive connection and return hive instance and account."""
+    wif = os.getenv("ACTIVE_WIF")
+    if not wif:
+        raise ValueError("No active WIF found in environment")
 
+    hive = Hive(node="https://api.hive.blog", keys=wif)
+    account = Account(
+        Wallet(blockchain_instance=hive).getAccountFromPrivateKey(wif),
+        blockchain_instance=hive,
+    )
+    return hive, account
+
+
+def check_claimable_accounts() -> None:
+    """Check how many accounts can be claimed with current RC."""
     try:
-        # Setup Hive connection
-        wif = os.getenv("ACTIVE_WIF")
-        if not wif:
-            raise ValueError("No active WIF found in environment")
+        hive, account = setup_hive()
+        rc = RC(blockchain_instance=hive)
 
-        hive = Hive(node="https://api.hive.blog", keys=wif)
-        wallet = Wallet(blockchain_instance=hive)
-        hiveid = wallet.getAccountFromPrivateKey(wif)
-        account = Account(hiveid, blockchain_instance=hive)
+        # Get current mana and claim cost
+        current_mana = int(account.get_rc_manabar()["current_mana"])
+        claim_cost = hive.get_rc_cost(
+            rc.get_resource_count(
+                tx_size=300,
+                execution_time_count=resource_execution_time[
+                    "claim_account_operation_exec_time"
+                ],
+                new_account_op_count=1,
+            )
+        )
 
-        # Check mana
-        mana_data = account.get_rc_manabar()
-        mana_current = mana_data["current_mana"] / 1e9
+        # Calculate and display results
+        can_claim = current_mana // claim_cost if claim_cost > 0 else 0
+        print(f"Current RC mana: {current_mana:,}")
+        print(f"Cost per account: {claim_cost:,}")
+        print(f"You can claim approximately {can_claim:,} accounts")
 
-        if mana_current < mana_threshold:
-            print(f"Insufficient mana: {mana_current:.6f} (threshold: {mana_threshold:.6f})")
-            return None
+    except Exception as e:
+        print(f"Error checking claimable accounts: {e}")
 
-        # Log pre-claim mana
-        print(f"Mana before claim: {mana_current:.6f} RC")
+
+def claim_account() -> Optional[dict]:
+    """Claim a HIVE account if sufficient RC is available."""
+    try:
+        hive, account = setup_hive()
+
+        # Get mana before claim
+        mana_before = int(account.get_rc_manabar()["current_mana"])
+        print(f"Mana before claim: {mana_before:,} RC")
 
         # Attempt account claim
-        tx = hive.claim_account(creator=hiveid, fee=None)
+        tx = hive.claim_account(creator=account.name, fee=None)
 
-        # Log post-claim details
-        mana_after = account.get_rc_manabar()
-        mana_cost = (mana_data["current_mana"] - mana_after["current_mana"]) / 1e9
-        print(f"Mana after claim: {mana_after['current_mana'] / 1e9:.6f} RC")
-        print(f"Mana cost: {mana_cost:.6f} RC")
+        # Get mana after claim and calculate cost
+        mana_after = int(account.get_rc_manabar()["current_mana"])
+        print(f"Mana after claim: {mana_after:,} RC")
+        print(f"Mana cost: {mana_before - mana_after:,} RC")
 
         return tx
 
@@ -58,9 +84,14 @@ def claim_account(mana_threshold: float = 10000) -> Optional[dict]:
         return None
 
 
-def main():
-    mana_threshold = float(os.getenv("MANA", 10000))
-    claim_account(mana_threshold)
+def main() -> None:
+    """Check claimable accounts and optionally claim one."""
+    load_dotenv()
+
+    check_claimable_accounts()
+
+    if input("\nWould you like to claim an account? (y/N): ").lower() == "y":
+        claim_account()
 
 
 if __name__ == "__main__":

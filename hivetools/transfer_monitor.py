@@ -1,4 +1,13 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --quiet --script
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "beem",
+#     "dataset",
+#     "python-dotenv",
+# ]
+# ///
+
 
 import dataset
 from beem import Hive
