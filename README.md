@@ -1,13 +1,6 @@
-# HiveTools - Hive Blockchain Utilities
+# HiveTools
 
-A collection of Python utilities for interacting with the Hive blockchain.
-
-## Features
-
-- **Account Management**: Claim accounts, manage delegations, and power down
-- **Token Operations**: Transfer tokens and monitor transactions
-- **Automation**: Bot for automated comment upvoting
-- **Security**: View and manage account keys
+A collection of command-line tools for managing Hive blockchain accounts and content.
 
 ## Installation
 
@@ -18,72 +11,50 @@ A collection of Python utilities for interacting with the Hive blockchain.
    ```
 
 2. Install dependencies:
-   ```bash
-   uv sync
-   ```
-
-3. Configure environment variables in `.env` file:
-   ```bash
-   cp .env.example .env
-   ```
-
-## Tools Overview
-
-### claim.py
-Claims an account if your Mana is within reason using Hive.
-
-**Usage**:
 ```bash
-python3 claim.py
+uv sync
+```
+3. Copy `.env.example` to `.env` and add your keys
+
+## Available Tools
+
+### Account Management
+- `claim.py` - Check claimable accounts and claim new accounts
+- `kill_auth.py` - Remove account authorities
+- `power_down.py` - Initiate power down of all HIVE POWER
+- `view_keys.py` - Display account keys and authorities
+
+### Content Management
+- `lookup_edits.py` - View edit history of posts
+- `tx_dust.py` - Clean up small balances
+
+### Site Tools
+- `sitetools/` - Tools for managing Hive-powered websites:
+  - Delegation
+  - Account Authority
+
+## Configuration
+
+Create a `.env` file with your account keys:
+```env
+POSTING_WIF=5xxxxx
+ACTIVE_WIF=5xxxxx
 ```
 
-### dedelegate.py
-Drops all delegation on Hive.
+## Usage
 
-**Usage**:
+All tools can be run directly from the command line:
 ```bash
-python3 dedelegate.py
+python hivetools/tool_name.py
 ```
 
-### power_down.py
-Starts the power down of all currently available vests on Hive.
+Each tool will prompt for any required input and display relevant information.
 
-**Usage**:
-```bash
-python3 power_down.py
-```
+## Security
 
-### transfer_monitor.py
-Monitors transfers and creates a SQLite3 database.
-
-**Usage**:
-```bash
-python3 transfer_monitor.py
-```
-
-### tx_all.py
-Transfers all hive-engine tokens to a destination account.
-
-**Usage**:
-```bash
-python3 tx_all.py
-```
-
-### upvote_bot.py
-A comment bot that upvotes parent comments based on criteria.
-
-**Usage**:
-```bash
-python upvote_bot.py
-```
-
-### view_keys.py
-Displays keys associated with Hive accounts.
-
-**Usage**:
-```bash
-python3 view_keys.py
-```
+- Never share your private keys
+- Store your `.env` file securely
+- Use appropriate key permissions (posting/active) for each operation
 
 ## Contributing
 
