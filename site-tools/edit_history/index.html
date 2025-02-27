@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Post Edit History - HiveTools</title>
+    <meta name="description" content="View and manage edit history for your Hive posts.">
+</head>
+
+<body>
+    <h2>Post Edit History</h2>
+
+    <form id="editHistoryForm">
+        <span>@</span>
+        <input type="text" id="permlink" placeholder="author/permlink" required />
+        <button type="submit">View History</button>
+
+        <small>
+            Enter the full permlink (e.g., @thecrazygm/productive-day). <br />
+            Please be patient. Loading history may take a few seconds...
+        </small>
+    </form>
+
+    <div id="historyResults" style="display: none;">
+        <h3>Edit History</h3>
+        <div id="editList">
+            <!-- Edit history items will be inserted here -->
+        </div>
+
+        <div id="diffView" style="display: none;">
+            <h3>Changes</h3>
+            <div class="diff-meta">
+                <!-- Metadata about the diff will be shown here -->
+            </div>
+            <div>
+                <div>
+                    <div>
+                        <strong>Previous Version</strong>
+                        <span class="old-timestamp"></span>
+                    </div>
+                    <pre id="oldVersion"></pre>
+                </div>
+                <div>
+                    <div>
+                        <strong>Current Version</strong>
+                        <span class="new-timestamp"></span>
+                    </div>
+                    <pre id="newVersion"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <h3>About Post History</h3>
+        <p>This tool shows the complete edit history of any post on Hive.</p>
+        <p>Click on any version to see what changes were made in that edit.</p>
+    </div>
+
+    <script src="https://unpkg.com/@hiveio/dhive@latest/dist/dhive.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/diff_match_patch/20121119/diff_match_patch.js"></script>
+    <script>
+        // Initialize dhive client
+        const client = new dhive.Client([
+            "https://api.hive.blog",
+            "https://api.hivekings.com",
+            "https://api.openhive.network",
+        ]);
+
+        // Initialize diff_match_patch
+        const dmp = new diff_match_patch();
+
+        // Function to parse permlink from input
+        function parsePermlink(input) {
+            // Remove @ if present
+            input = input.replace(/^@/, "");
+
+            // Split into author and permlink
+            const parts = input.split("/");
+            if (parts.length !== 2) {
+                throw new Error(
+                    "Invalid permlink format. Please use format: author/permlink",
+                );
+            }
+
+            return {
+                author: parts[0].trim(),
+                permlink: parts[1].trim(),
+            };
+        }
+
+        // Function to format date
+        function formatDate(date) {
+            return new Date(date + "Z").toLocaleString();
+        }
+
+        // Function to get post history
+        async function getPostHistory(author, permlink) {
+            try {
+                // First try to get the post to verify it exists and get creation date
+                const post = await client.database.call("get_content", [author, permlink]);
+
+                if (!post || !post.body) {
+                    throw new Error("Post not found");
+                }
+
+                const postCreatedDate = new Date(post.created + "Z");
+                let lastId = -1;
+                const batchSize = 1000;
+                let allHistory = [];
+                let reachedCreation = false;
+
+                // Loop until we reach the post creation date
+                while (!reachedCreation) {
+                    const historyBatch = await client.database.call("get_account_history", [
+                        author,
+                        lastId,
+                        batchSize,
+                    ]);
+
+                    if (historyBatch.length === 0) {
+                        break;
+                    }
+
+                    // Update lastId for next iteration
+                    lastId = historyBatch[0][0] - 1;
+
+                    // Process this batch
+                    const batchEdits = historyBatch
+                        .filter((entry) => {
+                            const op = entry[1].op;
+                            const timestamp = new Date(entry[1].timestamp + "Z");
+
+                            // Stop if we've gone past post creation date
+                            if (timestamp < postCreatedDate) {
+                                reachedCreation = true;
+                                return false;
+                            }
+
+                            return (
+                                op[0] === "comment" &&
+                                op[1].author === author &&
+                                op[1].permlink === permlink
+                            );
+                        })
+                        .map((entry) => ({
+                            timestamp: entry[1].timestamp,
+                            body: entry[1].op[1].body,
+                            title: entry[1].op[1].title,
+                            json_metadata: entry[1].op[1].json_metadata,
+                            last_update: entry[1].op[1].last_update || entry[1].timestamp,
+                        }));
+
+                    allHistory = [...allHistory, ...batchEdits];
+
+                    // Break if we've reached creation date or have no more history
+                    if (reachedCreation || lastId < 0) {
+                        break;
+                    }
+                }
+
+                // Sort all edits chronologically
+                const sortedEdits = allHistory.sort(
+                    (a, b) => new Date(a.timestamp + "Z") - new Date(b.timestamp + "Z"),
+                );
+
+                if (sortedEdits.length === 0) {
+                    throw new Error("No edit history found for this post");
+                }
+
+                return sortedEdits;
+            } catch (error) {
+                console.error("Error fetching post history:", error);
+                throw error;
+            }
+        }
+
+        // Function to process text for display
+        function processText(text) {
+            // Decode URL-encoded characters
+            text = decodeURIComponent(text.replace(/\+/g, " "));
+
+            // Make markdown links and images more readable
+            text = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, "Image: $1");
+            text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, "Link: $1");
+
+            // Add line breaks for better readability
+            text = text.replace(/%0A/g, "\n");
+
+            return text;
+        }
+
+        // Function to create highlighted lines
+        function createHighlightedLines(text, type) {
+            return text
+                .split("\n")
+                .map((line) => {
+                    if (!line.trim()) return '<span class="diff-line">&nbsp;</span>';
+                    // Only apply bold to added/removed content, not the entire line
+                    if (type === "diff-add" || type === "diff-remove") {
+                        return `<span class="diff-line ${type}">${line}</span>`;
+                    } else {
+                        return `<span class="diff-line">${line}</span>`;
+                    }
+                })
+                .join("\n");
+        }
+
+        // Function to create diff
+        function createDiff(oldText, newText) {
+            const diffs = dmp.diff_main(oldText || "", newText || "");
+            dmp.diff_cleanupSemantic(diffs);
+
+            let html = "";
+            for (const [type, text] of diffs) {
+                const processedText = processText(text);
+                const escapedText = processedText
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;");
+
+                switch (type) {
+                    case 1: // Addition
+                        html += `<span class="diff-add">+ ${escapedText}</span>`;
+                        break;
+                    case -1: // Deletion
+                        html += `<span class="diff-remove">- ${escapedText}</span>`;
+                        break;
+                    case 0: // No change
+                        html += escapedText;
+                        break;
+                }
+            }
+            return html;
+        }
+
+        // Function to show diff between versions
+        function showDiff(versions, index) {
+            const diffView = document.getElementById("diffView");
+            const diffMeta = diffView.querySelector(".diff-meta");
+            const oldVersionElem = document.getElementById("oldVersion");
+            const newVersionElem = document.getElementById("newVersion");
+
+            const oldVersion = versions[index - 1];
+            const newVersion = versions[index];
+
+            // Show metadata about the changes
+            diffMeta.innerHTML = `
+        <div class="mb-3">
+          <strong>Comparing versions:</strong> ${index} &rarr; ${index + 1}<br>
+          <strong>Changes made on:</strong> ${formatDate(newVersion.timestamp)}
+        </div>
+      `;
+
+            // Update timestamps in headers
+            diffView.querySelector(".old-timestamp").textContent = formatDate(
+                oldVersion.timestamp,
+            );
+            diffView.querySelector(".new-timestamp").textContent = formatDate(
+                newVersion.timestamp,
+            );
+
+            // Process the text content
+            const oldText = processText(oldVersion.body);
+            const newText = processText(newVersion.body);
+
+            // Get the diffs
+            const diffs = dmp.diff_main(oldText, newText);
+            dmp.diff_cleanupSemantic(diffs);
+
+            // Prepare the content for both sides
+            let oldContent = "";
+            let newContent = "";
+
+            diffs.forEach(([type, text]) => {
+                const escapedText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+                if (type === -1) {
+                    // Deletion
+                    oldContent += createHighlightedLines(escapedText, "diff-remove");
+                } else if (type === 1) {
+                    // Addition
+                    newContent += createHighlightedLines(escapedText, "diff-add");
+                } else {
+                    // No change
+                    oldContent += createHighlightedLines(escapedText, "");
+                    newContent += createHighlightedLines(escapedText, "");
+                }
+            });
+
+            // Create a style tag for additional styling
+            const styleTag = document.createElement('style');
+            styleTag.innerHTML = `
+        .diff-remove { 
+          background-color: #ffdddd; 
+          text-decoration: line-through;
+          font-weight: bold;
+        }
+        .diff-add { 
+          background-color: #ddffdd; 
+          font-weight: bold;
+        }
+        .diff-line {
+          display: block;
+          padding: 2px 5px;
+        }
+      `;
+            document.head.appendChild(styleTag);
+
+            // Update the content
+            oldVersionElem.innerHTML = oldContent;
+            newVersionElem.innerHTML = newContent;
+
+            // Show the diff view
+            diffView.style.display = 'block';
+
+            // Scroll to the diff view
+            diffView.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+            });
+
+            // Synchronize scrolling between the two sides
+            const syncScroll = (e) => {
+                const other = e.target === oldVersionElem ? newVersionElem : oldVersionElem;
+                other.scrollTop = e.target.scrollTop;
+            };
+
+            oldVersionElem.addEventListener("scroll", syncScroll);
+            newVersionElem.addEventListener("scroll", syncScroll);
+        }
+
+        // Function to display edit history
+        function displayHistory(history) {
+            const editList = document.getElementById("editList");
+            const historyResults = document.getElementById("historyResults");
+            const diffView = document.getElementById("diffView");
+
+            editList.innerHTML = "";
+            historyResults.style.display = 'block';
+            diffView.style.display = 'none'; // Hide diff view initially
+
+            history.forEach((version, index) => {
+                const item = document.createElement("div");
+
+                item.innerHTML = `
+          <div>
+            <strong>Version ${index + 1}</strong>
+            <small class="text-muted ms-2 timestamp">${formatDate(version.timestamp)}</small>
+          </div>
+          ${index > 0
+            ? `
+            <button>
+              View Changes
+            </button>
+          `
+            : ""
+          }
+        `;
+
+                if (index > 0) {
+                    const button = item.querySelector("button");
+                    button.addEventListener("click", (e) => {
+                        e.stopPropagation();
+                        showDiff(history, index);
+                    });
+                }
+
+                editList.appendChild(item);
+            });
+
+            alert("Edit history loaded successfully");
+        }
+
+        // Handle form submission
+        document.addEventListener("DOMContentLoaded", () => {
+            const form = document.getElementById("editHistoryForm");
+            if (form) {
+                form.addEventListener("submit", async (e) => {
+                    e.preventDefault();
+
+                    const input = document.getElementById("permlink").value;
+                    try {
+                        const {
+                            author,
+                            permlink
+                        } = parsePermlink(input);
+                        const history = await getPostHistory(author, permlink);
+
+                        if (history.length === 0) {
+                            alert("No history found for this post");
+                            return;
+                        }
+
+                        displayHistory(history);
+                    } catch (error) {
+                        console.error("Error:", error);
+                        alert(error.message);
+                    }
+                });
+
+                // Load initial permlink if provided
+                const input = document.getElementById("permlink");
+                if (input && input.value) {
+                    form.dispatchEvent(new Event("submit"));
+                }
+            } else {
+                console.error("Edit history form not found");
+                alert("Error: Edit history form not found");
+            }
+        });
+    </script>
+</body>
+
+</html>
