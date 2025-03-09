@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 from hiveengine.wallet import Wallet as heWallet
 
 DRY_RUN = False
-BLACKLIST = [
+WHITELIST = [
     "INCOME",
     "ARCHON",
     "ARCHONM",
@@ -50,7 +50,7 @@ def dump_dust():
         symbol = token["symbol"]
         # info = Tokens().get_token(symbol)
         balance = float(f"{float(token['balance'])}")
-        if balance < 1 and balance > 0 and symbol not in BLACKLIST:
+        if balance < 1 and balance > 0 and symbol not in WHITELIST:
             print(f"[ Transfering {balance} of {symbol} to {send_to} ]")
             hew.transfer(send_to, balance, symbol, memo="Automatic transfer")
             time.sleep(1)
