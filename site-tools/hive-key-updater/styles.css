@@ -1,0 +1,151 @@
+/* Main styling for Hive Account Key Updater */
+body {
+  background-color: #f5f8fa;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.main-card {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  border: none;
+  margin-bottom: 2rem;
+}
+
+.card-header {
+  border-radius: 8px 8px 0 0 !important;
+  background: linear-gradient(135deg, #1a73e8, #0d47a1) !important;
+}
+
+.step-container {
+  padding: 1.5rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+  background-color: #ffffff;
+  transition: all 0.3s ease;
+}
+
+.step-container h4 {
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+/* Style for the keys table */
+.table-responsive {
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  margin-bottom: 1.5rem;
+}
+
+.table th {
+  background-color: #e7f0fd;
+}
+
+/* Key value styling */
+.key-value {
+  font-family: monospace;
+  word-break: break-all;
+  font-size: 0.85rem;
+}
+
+/* Copy button styling */
+.copy-btn {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.copy-btn:hover {
+  color: #1a73e8;
+}
+
+/* Switch styling */
+.form-switch .form-check-input {
+  width: 3rem;
+  height: 1.5rem;
+  cursor: pointer;
+}
+
+.form-switch .form-check-input:checked {
+  background-color: #f57c00;
+  border-color: #f57c00;
+}
+
+/* Toggle on/off labels for the switch */
+.form-check-label {
+  cursor: pointer;
+  font-weight: 600;
+  color: #f57c00;
+}
+
+/* Action buttons */
+.btn-primary {
+  background-color: #1a73e8;
+  border-color: #1a73e8;
+}
+
+.btn-primary:hover {
+  background-color: #0d47a1;
+  border-color: #0d47a1;
+}
+
+.btn-danger {
+  background-color: #e53935;
+  border-color: #e53935;
+}
+
+.btn-danger:hover {
+  background-color: #c62828;
+  border-color: #c62828;
+}
+
+/* Masked keys styling */
+.key-masked {
+  color: #666;
+  letter-spacing: 0.1em;
+  user-select: none; /* Prevent selection of masked content */
+  cursor: not-allowed; /* Indicate that masked content can't be selected */
+  filter: blur(1px); /* Slightly blur masked content for added security */
+  font-family: monospace; /* Ensure consistent width for masked characters */
+  font-size: 0.85rem; /* Match the size of unmasked keys */
+}
+
+/* Position the reveal button for better interaction */
+.position-relative {
+  position: relative;
+}
+
+/* Style for key display containers */
+#masterPasswordDisplay {
+  padding-right: 40px; /* Space for the eye button */
+}
+
+/* Eye button hover effect */
+#revealMasterPasswordBtn:hover,
+.key-reveal-btn:hover {
+  background-color: #f0f0f0;
+  color: #1a73e8;
+}
+
+/* Animation for status changes */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .key-value {
+    font-size: 0.7rem;
+  }
+}
