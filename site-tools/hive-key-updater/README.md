@@ -7,7 +7,6 @@ A web-based tool for updating Hive blockchain account keys securely. This applic
 - Generate secure BIP39 mnemonic passphrases
 - Preview new keys before updating
 - Direct owner key authentication for account updates
-- Dry run mode for testing before making actual changes
 - Download keys as JSON file for backup
 - Responsive, modern UI built with Bootstrap 5
 
@@ -18,7 +17,7 @@ A web-based tool for updating Hive blockchain account keys securely. This applic
 3. Generate a new secure passphrase
 4. Preview the new keys that will be created
 5. Download your keys for safekeeping
-6. Update your account keys (make sure to turn off Dry Run mode when ready)
+6. Update your account keys
 
 ## Dependencies
 
