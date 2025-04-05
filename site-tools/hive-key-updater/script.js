@@ -4,6 +4,10 @@ let generatedKeys = null;
 let keysDownloaded = false; // Track whether keys have been downloaded
 let currentNodeUrl = "https://api.hive.blog"; // Default node
 
+// Secure storage for private keys (in-memory only)
+let privateKeyStorage = {};
+let keyExpirationTimer = null;
+
 // List of Hive nodes to choose from
 const hiveNodes = [
   { url: "https://api.hive.blog", name: "api.hive.blog" },
@@ -89,17 +93,35 @@ function setupEventListeners() {
   generateNewPassword();
 }
 
-// Step 1: Check if the account exists
+// Step 1: Check if the account exists and validate owner key
 async function checkAccount() {
   const accountNameInput = document.getElementById("accountName");
   const accountName = accountNameInput.value.trim().toLowerCase();
+  const ownerWif = document.getElementById("ownerWif").value.trim();
 
   if (!accountName) {
     showError("Please enter a valid Hive account name.");
     return;
   }
 
+  if (!ownerWif) {
+    showError("Please enter your owner private key (WIF).");
+    return;
+  }
+
   try {
+    // First check if the WIF format is valid
+    let ownerKey;
+    try {
+      ownerKey = dhive.PrivateKey.fromString(ownerWif);
+    } catch (e) {
+      showError("Invalid owner private key format. Please check your key and try again.");
+      return;
+    }
+    
+    // Get the derived public key from the private key
+    const derivedPublicKey = ownerKey.createPublic().toString();
+    
     // Check if account exists on Hive
     const accounts = await client.database.getAccounts([accountName]);
 
@@ -108,9 +130,43 @@ async function checkAccount() {
       return;
     }
 
-    // Store account information
-    currentAccount = accounts[0];
+    const account = accounts[0];
+    
+    // Check if the provided owner key matches any of the account's owner keys
+    let keyMatchesAccount = false;
+    if (account.owner && account.owner.key_auths) {
+      for (const [publicKey, weight] of account.owner.key_auths) {
+        if (publicKey === derivedPublicKey) {
+          keyMatchesAccount = true;
+          break;
+        }
+      }
+    }
+    
+    if (!keyMatchesAccount) {
+      showError("The provided owner key does not match this account's owner authority. Please verify your key and try again.");
+      return;
+    }
+    
+    // Store account information for later use
+    currentAccount = account;
+    
+    // Store the validated owner key in memory for security
+    privateKeyStorage['owner_wif'] = ownerWif;
+    
+    // Set up expiration timer for the key - using a much longer timeout for the full process
+    if (keyExpirationTimer) {
+      clearTimeout(keyExpirationTimer);
+    }
+    keyExpirationTimer = setTimeout(() => {
+      privateKeyStorage = {};
+      console.log("Private keys cleared from memory due to timeout");
+      // Show notification if user is still on the page
+      showError("For security reasons, your private keys have been cleared from memory due to inactivity.");
+    }, 30 * 60 * 1000); // 30 minutes - enough time to complete the full process
 
+    console.log("Owner key validation successful");
+    
     // Move to step 2
     showStep(2);
   } catch (error) {
@@ -177,18 +233,32 @@ function copyPasswordToClipboard() {
 
 // Copy the master password from the preview display to clipboard
 function copyMasterPasswordToClipboard() {
-  const masterPasswordEl = document.getElementById("masterPasswordDisplay");
-  const masterPassword =
-    masterPasswordEl.dataset.actualPassword || masterPasswordEl.textContent;
-  navigator.clipboard.writeText(masterPassword).then(() => {
-    // Show feedback
-    const copyBtn = document.getElementById("copyMasterPasswordBtn");
-    const originalHTML = copyBtn.innerHTML;
-    copyBtn.innerHTML = '<i class="fas fa-check"></i>';
-    setTimeout(() => {
-      copyBtn.innerHTML = originalHTML;
-    }, 1500);
-  });
+  // Get master password from memory storage instead of DOM
+  const masterPassword = privateKeyStorage['master'];
+  
+  if (masterPassword) {
+    navigator.clipboard.writeText(masterPassword).then(() => {
+      // Show feedback
+      const copyBtn = document.getElementById("copyMasterPasswordBtn");
+      const originalHTML = copyBtn.innerHTML;
+      copyBtn.innerHTML = '<i class="fas fa-check"></i>';
+      setTimeout(() => {
+        copyBtn.innerHTML = originalHTML;
+      }, 1500);
+      
+      // Reset the key expiration timer when copying master password
+      if (keyExpirationTimer) {
+        clearTimeout(keyExpirationTimer);
+        keyExpirationTimer = setTimeout(() => {
+          privateKeyStorage = {};
+          console.log("Private keys cleared from memory due to timeout");
+        }, 30 * 60 * 1000); // Reset to 30 minutes
+      }
+    });
+  } else {
+    // Master password has expired
+    alert("For security, the master password has expired. Please regenerate keys.");
+  }
 }
 
 // Toggle visibility of the master password
@@ -197,19 +267,40 @@ function toggleMasterPasswordVisibility() {
   const revealBtn = document.getElementById("revealMasterPasswordBtn");
 
   if (masterPasswordEl.classList.contains("key-masked")) {
-    // Reveal the password
-    masterPasswordEl.textContent = masterPasswordEl.dataset.actualPassword;
-    masterPasswordEl.classList.remove("key-masked");
-    revealBtn.innerHTML = '<i class="fas fa-eye-slash"></i>';
+    // Get master password from memory storage
+    const masterPassword = privateKeyStorage['master'];
+    
+    if (masterPassword) {
+      // Reveal the password from memory
+      masterPasswordEl.textContent = masterPassword;
+      masterPasswordEl.classList.remove("key-masked");
+      revealBtn.innerHTML = '<i class="fas fa-eye-slash"></i>';
 
-    // Auto-hide after 10 seconds for security
-    setTimeout(() => {
-      if (!masterPasswordEl.classList.contains("key-masked")) {
+      // Reset the key expiration timer when viewing master password
+      if (keyExpirationTimer) {
+        clearTimeout(keyExpirationTimer);
+        keyExpirationTimer = setTimeout(() => {
+          privateKeyStorage = {};
+          console.log("Private keys cleared from memory due to timeout");
+        }, 30 * 60 * 1000); // Reset to 30 minutes
+      }
+
+      // Auto-hide after 10 seconds for security
+      setTimeout(() => {
+        if (!masterPasswordEl.classList.contains("key-masked")) {
+          masterPasswordEl.textContent = "••••••••••••••••••••••••";
+          masterPasswordEl.classList.add("key-masked");
+          revealBtn.innerHTML = '<i class="fas fa-eye"></i>';
+        }
+      }, 10000);
+    } else {
+      // Master password has expired
+      masterPasswordEl.textContent = "[Password expired for security]";
+      setTimeout(() => {
         masterPasswordEl.textContent = "••••••••••••••••••••••••";
         masterPasswordEl.classList.add("key-masked");
-        revealBtn.innerHTML = '<i class="fas fa-eye"></i>';
-      }
-    }, 10000);
+      }, 3000);
+    }
   } else {
     // Hide the password again
     masterPasswordEl.textContent = "••••••••••••••••••••••••";
@@ -237,6 +328,15 @@ async function previewKeys() {
 
     // Display the keys in the table
     displayKeysInTable(generatedKeys);
+    
+    // Reset the expiration timer when previewing keys
+    if (keyExpirationTimer) {
+      clearTimeout(keyExpirationTimer);
+    }
+    keyExpirationTimer = setTimeout(() => {
+      privateKeyStorage = {};
+      console.log("Private keys cleared from memory due to timeout");
+    }, 30 * 60 * 1000); // 30 minutes
 
     // Move to step 3
     showStep(3);
@@ -268,13 +368,44 @@ function generateKeysFromPassword(accountName, password) {
 function displayKeysInTable(keys) {
   const tableBody = document.querySelector("#keysTable tbody");
   tableBody.innerHTML = "";
+  
+  // Get the master password
+  const masterPassword = document.getElementById("newPassword").value.trim();
+  
+  // Store master password in memory - without clearing other keys
+  privateKeyStorage['master'] = masterPassword;
+  
+  // Store the private keys for each role in memory
+  
+  // Set up expiration timer for security
+  if (keyExpirationTimer) {
+    clearTimeout(keyExpirationTimer);
+  }
+  
+  keyExpirationTimer = setTimeout(() => {
+    // Clear private keys after timeout for security
+    privateKeyStorage = {};
+    console.log("Private keys cleared from memory due to timeout");
+    
+    // Notify user that keys have been cleared
+    const notification = document.createElement("div");
+    notification.className = "alert alert-warning alert-dismissible fade show mt-3";
+    notification.innerHTML = `
+      <i class="fas fa-clock me-2"></i>
+      For security, private keys have been cleared from memory after inactivity.
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    const keysTable = document.querySelector("#keysTable");
+    if (keysTable && keysTable.parentNode) {
+      keysTable.parentNode.insertBefore(notification, keysTable);
+    }
+  }, 30 * 60 * 1000); // 30 minutes
 
   // Display the master password in the separate display area (hidden by default)
-  const masterPassword = document.getElementById("newPassword").value.trim();
   const masterPasswordDisplay = document.getElementById(
     "masterPasswordDisplay",
   );
-  masterPasswordDisplay.dataset.actualPassword = masterPassword;
   masterPasswordDisplay.textContent = "••••••••••••••••••••••••";
   masterPasswordDisplay.classList.add("key-masked");
 
@@ -307,7 +438,10 @@ function displayKeysInTable(keys) {
     const privateKeySpan = document.createElement("span");
     privateKeySpan.textContent = "••••••••••••••••••••••••••••••••••••••••••••";
     privateKeySpan.className = "key-value key-masked";
-    privateKeySpan.dataset.actualKey = keys[role].private;
+    privateKeySpan.dataset.keyId = role; // Store only the role ID, not the actual key
+    
+    // Store the actual private key in memory, not in DOM
+    privateKeyStorage[role] = keys[role].private;
 
     // Create the reveal button
     const revealBtn = document.createElement("button");
@@ -321,24 +455,44 @@ function displayKeysInTable(keys) {
     // Add event listener for revealing/hiding the key
     revealBtn.addEventListener("click", function () {
       if (privateKeySpan.classList.contains("key-masked")) {
-        // Reveal the key
-        privateKeySpan.textContent = privateKeySpan.dataset.actualKey;
-        privateKeySpan.classList.remove("key-masked");
-        revealBtn.innerHTML = '<i class="fas fa-eye-slash"></i>';
+        // Get the key ID and retrieve the actual key from memory
+        const keyId = privateKeySpan.dataset.keyId;
+        const actualKey = privateKeyStorage[keyId];
+        
+        if (actualKey) {
+          // Reveal the key from memory
+          privateKeySpan.textContent = actualKey;
+          privateKeySpan.classList.remove("key-masked");
+          revealBtn.innerHTML = '<i class="fas fa-eye-slash"></i>';
 
-        // Auto-hide after 10 seconds for security
-        setTimeout(() => {
-          if (!privateKeySpan.classList.contains("key-masked")) {
-            privateKeySpan.textContent =
-              "••••••••••••••••••••••••••••••••••••••••••••";
-            privateKeySpan.classList.add("key-masked");
-            revealBtn.innerHTML = '<i class="fas fa-eye"></i>';
+          // Reset the key expiration timer when viewing keys
+          if (keyExpirationTimer) {
+            clearTimeout(keyExpirationTimer);
+            keyExpirationTimer = setTimeout(() => {
+              privateKeyStorage = {};
+              console.log("Private keys cleared from memory due to timeout");
+            }, 5 * 60 * 1000); // Reset to 5 minutes
           }
-        }, 10000);
+
+          // Auto-hide after 10 seconds for security
+          setTimeout(() => {
+            if (!privateKeySpan.classList.contains("key-masked")) {
+              privateKeySpan.textContent = "••••••••••••••••••••••••••••••••••••••••••••";
+              privateKeySpan.classList.add("key-masked");
+              revealBtn.innerHTML = '<i class="fas fa-eye"></i>';
+            }
+          }, 10000);
+        } else {
+          // Key has expired or is not available
+          privateKeySpan.textContent = "[Key expired for security]";
+          setTimeout(() => {
+            privateKeySpan.textContent = "••••••••••••••••••••••••••••••••••••••••••••";
+            privateKeySpan.classList.add("key-masked");
+          }, 3000);
+        }
       } else {
         // Hide the key again
-        privateKeySpan.textContent =
-          "••••••••••••••••••••••••••••••••••••••••••••";
+        privateKeySpan.textContent = "••••••••••••••••••••••••••••••••••••••••••••";
         privateKeySpan.classList.add("key-masked");
         revealBtn.innerHTML = '<i class="fas fa-eye"></i>';
       }
@@ -364,8 +518,25 @@ function displayKeysInTable(keys) {
     const copyPrivateBtn = document.createElement("button");
     copyPrivateBtn.className = "btn btn-sm btn-outline-success";
     copyPrivateBtn.innerHTML = '<i class="fas fa-copy"></i> Private';
-    copyPrivateBtn.onclick = () =>
-      copyToClipboard(keys[role].private, copyPrivateBtn);
+    copyPrivateBtn.onclick = () => {
+      // Get the private key from memory storage instead of DOM
+      const privateKey = privateKeyStorage[role];
+      if (privateKey) {
+        copyToClipboard(privateKey, copyPrivateBtn);
+        
+        // Reset the key expiration timer when copying keys
+        if (keyExpirationTimer) {
+          clearTimeout(keyExpirationTimer);
+          keyExpirationTimer = setTimeout(() => {
+            privateKeyStorage = {};
+            console.log("Private keys cleared from memory due to timeout");
+          }, 5 * 60 * 1000); // Reset to 5 minutes
+        }
+      } else {
+        // Key has expired
+        alert("For security, the private key has expired. Please regenerate keys.");
+      }
+    };
 
     actionsCell.appendChild(copyPublicBtn);
     actionsCell.appendChild(copyPrivateBtn);
@@ -443,184 +614,278 @@ async function updateKeys() {
 
   const accountName = document.getElementById("accountName").value.trim();
   const newPassword = document.getElementById("newPassword").value.trim();
-  const ownerWif = document.getElementById("ownerWif").value.trim();
-
+  
+  // For immediate troubleshooting, read the owner key from the input field again
+  // This is a fallback mechanism in case memory storage failed
+  const ownerWifInput = document.getElementById("ownerWif").value.trim();
+  const ownerWifFromMemory = privateKeyStorage['owner_wif'];
+  
+  // Use either the stored key or the input key
+  const ownerWif = ownerWifFromMemory || ownerWifInput;
+  
   if (!ownerWif) {
     showError("Please enter your owner private key (WIF).");
     return;
   }
+  
+  // Log for debugging purposes
+  console.log("Owner key available: ", Boolean(ownerWif));
+  console.log("From memory: ", Boolean(ownerWifFromMemory));
+  console.log("From input: ", Boolean(ownerWifInput));
+  
+  // Reset the expiration timer when proceeding with key update
+  if (keyExpirationTimer) {
+    clearTimeout(keyExpirationTimer);
+  }
+  keyExpirationTimer = setTimeout(() => {
+    privateKeyStorage = {};
+    console.log("Private keys cleared from memory due to timeout");
+  }, 30 * 60 * 1000); // 30 minutes
+  
+  // Start countdown timer for safety
+  let countdown = 10;
+  const updateBtn = document.getElementById("updateKeysBtn");
+  const originalText = updateBtn.innerHTML;
+  let countdownTimer;
+  
+  // Create a confirmation dialog
+  const confirmationAlert = document.createElement("div");
+  confirmationAlert.className = "alert alert-danger mt-3";
+  confirmationAlert.innerHTML = `
+    <strong><i class="fas fa-exclamation-triangle me-2"></i>WARNING:</strong>
+    This action is irreversible! Your account keys will be permanently changed.
+    <div class="mt-2">Please ensure you have saved your new keys before proceeding.</div>
+  `;
+  
+  // Insert the confirmation alert before the update button
+  const buttonsContainer = updateBtn.parentNode;
+  buttonsContainer.insertBefore(confirmationAlert, updateBtn);
+  
+  // Make the button clickable but change its style to indicate caution
+  updateBtn.classList.remove("btn-primary");
+  updateBtn.classList.add("btn-danger");
+  
+  // Start the countdown
+  countdownTimer = setInterval(() => {
+    updateBtn.innerHTML = `<i class="fas fa-exclamation-triangle me-1"></i>Updating in ${countdown}... Click to cancel`;
+    countdown--;
+    
+    if (countdown < 0) {
+      clearInterval(countdownTimer);
+      // Proceed with the update
+      performKeyUpdate();
+    }
+  }, 1000);
+  
+  // Allow cancellation
+  updateBtn.addEventListener("click", () => {
+    clearInterval(countdownTimer);
+    updateBtn.innerHTML = originalText;
+    // Restore original button style
+    updateBtn.classList.remove("btn-danger");
+    updateBtn.classList.add("btn-primary");
+    // Remove the confirmation alert
+    if (confirmationAlert.parentNode) {
+      confirmationAlert.parentNode.removeChild(confirmationAlert);
+    }
+  }, { once: true });
+  
+  // Function to perform the actual key update after countdown
+  async function performKeyUpdate() {
+    // Prepare the authority update
+    const ownerAuth = {
+      weight_threshold: 1,
+      account_auths: [],
+      key_auths: [[generatedKeys.owner.public, 1]],
+    };
 
-  // Prepare the authority update
-  const ownerAuth = {
-    weight_threshold: 1,
-    account_auths: [],
-    key_auths: [[generatedKeys.owner.public, 1]],
-  };
+    const activeAuth = {
+      weight_threshold: 1,
+      account_auths: [],
+      key_auths: [[generatedKeys.active.public, 1]],
+    };
 
-  const activeAuth = {
-    weight_threshold: 1,
-    account_auths: [],
-    key_auths: [[generatedKeys.active.public, 1]],
-  };
+    const postingAuth = {
+      weight_threshold: 1,
+      account_auths: [],
+      key_auths: [[generatedKeys.posting.public, 1]],
+    };
 
-  const postingAuth = {
-    weight_threshold: 1,
-    account_auths: [],
-    key_auths: [[generatedKeys.posting.public, 1]],
-  };
+    const memoKey = generatedKeys.memo.public;
 
-  const memoKey = generatedKeys.memo.public;
-
-  try {
-    // Manual method using owner WIF
-    let ownerKey;
     try {
-      ownerKey = dhive.PrivateKey.fromString(ownerWif);
-    } catch (e) {
-      showError("Invalid owner private key format.");
-      return;
-    }
+      // Validate the owner key (redundant validation for safety)
+      const ownerKey = dhive.PrivateKey.fromString(ownerWif);
+      
+      // If we got here, we have a valid key - for troubleshooting, try to derive public key
+      const publicKey = ownerKey.createPublic().toString();
+      console.log("Successfully created public key: ", publicKey.substring(0, 8) + '...');
+      
+      // Store the key again in memory for redundant safety
+      privateKeyStorage['owner_wif'] = ownerWif;
 
-    // Create and broadcast the transaction
-    const op = [
-      "account_update",
-      {
-        account: accountName,
-        owner: ownerAuth,
-        active: activeAuth,
-        posting: postingAuth,
-        memo_key: memoKey,
-        json_metadata: currentAccount.json_metadata,
-      },
-    ];
+      // Create and broadcast the transaction
+      const op = [
+        "account_update",
+        {
+          account: accountName,
+          owner: ownerAuth,
+          active: activeAuth,
+          posting: postingAuth,
+          memo_key: memoKey,
+          json_metadata: currentAccount.json_metadata,
+        },
+      ];
 
-    // Show a loading indicator
-    showStep(4);
-    
-    // Safely access DOM elements with null checks
-    const successMessage = document.getElementById("successMessage");
-    const errorMessage = document.getElementById("errorMessage");
-    
-    if (successMessage) successMessage.classList.add("d-none");
-    if (errorMessage) errorMessage.classList.add("d-none");
+      // Show a loading indicator
+      showStep(4);
+      
+      // Safely access DOM elements with null checks
+      const successMessage = document.getElementById("successMessage");
+      const errorMessage = document.getElementById("errorMessage");
+      
+      if (successMessage) successMessage.classList.add("d-none");
+      if (errorMessage) errorMessage.classList.add("d-none");
 
-    const loadingEl = document.createElement("div");
-    loadingEl.id = "loadingIndicator";
-    loadingEl.className = "alert alert-info";
-    loadingEl.innerHTML =
-      '<i class="fas fa-spinner fa-spin me-2"></i>Broadcasting transaction... please wait';
-    
-    const stepContainer = document.querySelector(".step-container:not(.d-none)");
-    if (stepContainer) {
-      stepContainer.prepend(loadingEl);
-    } else {
-      console.error("Could not find step container to add loading indicator");
-    }
-
-    // Send the transaction
-    const result = await client.broadcast.sendOperations([op], ownerKey);
-    console.log("Transaction successful:", result);
-
-    // Remove loading indicator
-    const loadingIndicator = document.getElementById("loadingIndicator");
-    if (loadingIndicator) {
-      loadingIndicator.remove();
-    }
-
-    // Display transaction details
-    if (result && result.id) {
-      // Set transaction ID
-      const txIdDisplay = document.getElementById("txIdDisplay");
-      if (txIdDisplay) {
-        txIdDisplay.textContent = result.id;
+      const loadingEl = document.createElement("div");
+      loadingEl.id = "loadingIndicator";
+      loadingEl.className = "alert alert-info";
+      loadingEl.innerHTML =
+        '<i class="fas fa-spinner fa-spin me-2"></i>Broadcasting transaction... please wait';
+      
+      const stepContainer = document.querySelector(".step-container:not(.d-none)");
+      if (stepContainer) {
+        stepContainer.prepend(loadingEl);
+      } else {
+        console.error("Could not find step container to add loading indicator");
       }
 
-      // Setup explorer link
-      const explorerUrl = `https://hivehub.dev/tx/${result.id}`;
-      document.getElementById("viewTxLink").href = explorerUrl;
+      // Send the transaction
+      const result = await client.broadcast.sendOperations([op], ownerKey);
+      console.log("Transaction successful:", result);
 
-      // Setup copy transaction ID button
-      document
-        .getElementById("copyTxId")
-        .addEventListener("click", function () {
-          navigator.clipboard.writeText(result.id).then(() => {
-            const originalHTML = this.innerHTML;
-            this.innerHTML = '<i class="fas fa-check"></i>';
-            setTimeout(() => {
-              this.innerHTML = originalHTML;
-            }, 1500);
+      // Remove loading indicator
+      const loadingIndicator = document.getElementById("loadingIndicator");
+      if (loadingIndicator) {
+        loadingIndicator.remove();
+      }
+
+      // Display transaction details
+      if (result && result.id) {
+        // Set transaction ID
+        const txIdDisplay = document.getElementById("txIdDisplay");
+        if (txIdDisplay) {
+          txIdDisplay.textContent = result.id;
+        }
+
+        // Setup explorer link
+        const explorerUrl = `https://hivehub.dev/tx/${result.id}`;
+        document.getElementById("viewTxLink").href = explorerUrl;
+
+        // Setup copy transaction ID button
+        document
+          .getElementById("copyTxId")
+          .addEventListener("click", function () {
+            navigator.clipboard.writeText(result.id).then(() => {
+              const originalHTML = this.innerHTML;
+              this.innerHTML = '<i class="fas fa-check"></i>';
+              setTimeout(() => {
+                this.innerHTML = originalHTML;
+              }, 1500);
+            });
           });
-        });
 
-      // Set timestamp - format current time as it would be when transaction is confirmed
-      const timestamp = new Date().toISOString();
-      document.getElementById("txTimestamp").textContent = new Date(
-        timestamp,
-      ).toLocaleString();
-
-      // Set account name
-      document.getElementById("txAccount").textContent = `@${accountName}`;
-
-      // Set updated keys list
-      const updatedKeys = [];
-      if (generatedKeys.owner) updatedKeys.push("Owner");
-      if (generatedKeys.active) updatedKeys.push("Active");
-      if (generatedKeys.posting) updatedKeys.push("Posting");
-      if (generatedKeys.memo) updatedKeys.push("Memo");
-
-      document.getElementById("updatedKeysList").innerHTML = updatedKeys
-        .map((key) => `<span class="badge bg-secondary me-1">${key}</span>`)
-        .join("");
-
-      // Set raw transaction data
-      const rawTransactionData = JSON.stringify(
-        {
-          id: result.id,
-          block_num: result.block_num || "Pending",
-          transaction_num: result.transaction_num || 0,
+        // Set timestamp - format current time as it would be when transaction is confirmed
+        const timestamp = new Date().toISOString();
+        document.getElementById("txTimestamp").textContent = new Date(
           timestamp,
-          operations: [
-            [
-              "account_update",
-              {
-                account: accountName,
-                owner: ownerAuth,
-                active: activeAuth,
-                posting: postingAuth,
-                memo_key: memoKey,
-                json_metadata: currentAccount.json_metadata,
-              },
+        ).toLocaleString();
+
+        // Set account name
+        document.getElementById("txAccount").textContent = `@${accountName}`;
+
+        // Set updated keys list
+        const updatedKeys = [];
+        if (generatedKeys.owner) updatedKeys.push("Owner");
+        if (generatedKeys.active) updatedKeys.push("Active");
+        if (generatedKeys.posting) updatedKeys.push("Posting");
+        if (generatedKeys.memo) updatedKeys.push("Memo");
+
+        document.getElementById("updatedKeysList").innerHTML = updatedKeys
+          .map((key) => `<span class="badge bg-secondary me-1">${key}</span>`)
+          .join("");
+
+        // Set raw transaction data
+        const rawTransactionData = JSON.stringify(
+          {
+            id: result.id,
+            block_num: result.block_num || "Pending",
+            transaction_num: result.transaction_num || 0,
+            timestamp,
+            operations: [
+              [
+                "account_update",
+                {
+                  account: accountName,
+                  owner: ownerAuth,
+                  active: activeAuth,
+                  posting: postingAuth,
+                  memo_key: memoKey,
+                  json_metadata: currentAccount.json_metadata,
+                },
+              ],
             ],
-          ],
-        },
-        null,
-        2,
-      );
+          },
+          null,
+          2,
+        );
 
-      document.getElementById("rawTransactionData").textContent =
-        rawTransactionData;
+        document.getElementById("rawTransactionData").textContent =
+          rawTransactionData;
 
-      // Setup toggle button for raw transaction
-      document
-        .getElementById("toggleRawTxBtn")
-        .addEventListener("click", function () {
-          const container = document.getElementById("rawTransactionContainer");
-          if (container.classList.contains("show")) {
-            container.classList.remove("show");
-          } else {
-            container.classList.add("show");
-          }
-        });
+        // Setup toggle button for raw transaction
+        document
+          .getElementById("toggleRawTxBtn")
+          .addEventListener("click", function () {
+            const container = document.getElementById("rawTransactionContainer");
+            if (container.classList.contains("show")) {
+              container.classList.remove("show");
+            } else {
+              container.classList.add("show");
+            }
+          });
+
+        // Show success message
+        if (successMessage) {
+          successMessage.classList.remove("d-none");
+        }
+
+        // Clear private keys from memory for security
+        privateKeyStorage = {};
+        if (keyExpirationTimer) {
+          clearTimeout(keyExpirationTimer);
+        }
+      }
+    } catch (error) {
+      console.error("Error updating keys:", error);
+
+      // Remove loading indicator
+      const loadingIndicator = document.getElementById("loadingIndicator");
+      if (loadingIndicator) {
+        loadingIndicator.remove();
+      }
+
+      // Show error message
+      if (errorMessage) {
+        errorMessage.classList.remove("d-none");
+      }
+
+      // Display detailed error message
+      const errorDetails = document.getElementById("errorDetails");
+      if (errorDetails) {
+        errorDetails.textContent = error.message || "Unknown error";
+      }
     }
-
-    // Show success message
-    const finalSuccessMessage = document.getElementById("successMessage");
-    const finalErrorMessage = document.getElementById("errorMessage");
-    
-    if (finalSuccessMessage) finalSuccessMessage.classList.remove("d-none");
-    if (finalErrorMessage) finalErrorMessage.classList.add("d-none");
-  } catch (error) {
-    showError(`Error updating keys: ${error.message}`);
   }
 }
 
@@ -689,6 +954,14 @@ function startOver() {
   currentAccount = null;
   generatedKeys = null;
   keysDownloaded = false;
+  
+  // Clear private key storage for security
+  privateKeyStorage = {};
+  if (keyExpirationTimer) {
+    clearTimeout(keyExpirationTimer);
+    keyExpirationTimer = null;
+  }
+  
   document.getElementById("accountName").value = "";
   document.getElementById("ownerWif").value = "";
   generateNewPassword(); // Generate a fresh password
