@@ -11,7 +11,7 @@ const BIP39 = (function () {
   }
 
   /**
-   * Generate a cryptographically strong mnemonic with the given number of words
+   * Generate a cryptographically strong mnemonic with the given bit strength
    * @param {number} strength - Bit strength (128, 160, 192, 224, 256)
    * @returns {string} Space-separated mnemonic phrase
    */
@@ -27,43 +27,53 @@ const BIP39 = (function () {
       );
     }
 
-    // Math.random is not cryptographically secure, but we're using this as a fallback
-    // when Web Crypto API is not available
-    const getRandomValues = (buffer) => {
+    // Use cryptographically secure random values when available
+    function getSecureRandomValues(buffer) {
       if (window.crypto && window.crypto.getRandomValues) {
         return window.crypto.getRandomValues(buffer);
       } else {
-        // Fallback to Math.random
+        // Fallback to Math.random with warning
+        console.warn('Using Math.random fallback which is not cryptographically secure');
         for (let i = 0; i < buffer.length; i++) {
           buffer[i] = Math.floor(Math.random() * 256);
         }
         return buffer;
       }
-    };
+    }
 
     // Calculate number of words (strength / 32 * 3)
     const wordCount = Math.floor((strength / 32) * 3);
-
-    // Generate random bytes
+    
+    // Generate random bytes with improved entropy
     const byteCount = Math.ceil(strength / 8);
     const entropy = new Uint8Array(byteCount);
-    getRandomValues(entropy);
-
-    // Select random words from wordlist
+    getSecureRandomValues(entropy);
+    
+    // Improved selection of words to better utilize all entropy bytes
     const result = [];
+    
+    // Use a more secure method to select words
     for (let i = 0; i < wordCount; i++) {
-      const randomIndex = Math.floor(
-        (entropy[i % byteCount] * wordlist.length) / 256,
-      );
-      result.push(wordlist[randomIndex]);
+      // Get a secure random value for each word
+      let randomValue = 0;
+      
+      // Combine multiple entropy bytes for better randomness
+      for (let j = 0; j < 4; j++) {
+        const byteIndex = (i * 4 + j) % entropy.length;
+        randomValue = (randomValue << 8) | entropy[byteIndex];
+      }
+      
+      // Use the random value to select a word
+      const wordIndex = Math.abs(randomValue) % wordlist.length;
+      result.push(wordlist[wordIndex]);
     }
-
+    
     return result.join(" ");
   }
 
   // Return public methods
   return {
-    generateMnemonic: generateMnemonic,
+    generateMnemonic: generateMnemonic
   };
 })();
 

@@ -2,17 +2,42 @@
 let currentAccount = null;
 let generatedKeys = null;
 let keysDownloaded = false; // Track whether keys have been downloaded
+let currentNodeUrl = "https://api.hive.blog"; // Default node
 
-// DHive client initialization
-const client = new dhive.Client([
-  "https://api.hive.blog",
-  "https://api.syncad.com",
-]);
+// List of Hive nodes to choose from
+const hiveNodes = [
+  { url: "https://api.hive.blog", name: "api.hive.blog" },
+  { url: "https://api.deathwing.me", name: "api.deathwing.me" },
+  { url: "https://hive-api.arcange.eu", name: "hive-api.arcange.eu" },
+  { url: "https://api.openhive.network", name: "api.openhive.network" },
+  { url: "https://techcoderx.com", name: "techcoderx.com" },
+  { url: "https://api.c0ff33a.uk", name: "api.c0ff33a.uk" },
+  { url: "https://hive-api.3speak.tv", name: "hive-api.3speak.tv" },
+  { url: "https://hiveapi.actifit.io", name: "hiveapi.actifit.io" },
+  { url: "https://rpc.mahdiyari.info", name: "rpc.mahdiyari.info" },
+  { url: "https://hive-api.dlux.io", name: "hive-api.dlux.io" },
+  { url: "https://api.syncad.com", name: "api.syncad.com" },
+  { url: "https://hive.roelandp.nl", name: "hive.roelandp.nl" },
+  { url: "https://anyx.io", name: "anyx.io" },
+  { url: "https://hived.emre.sh", name: "hived.emre.sh" },
+  { url: "https://api.hive.blue", name: "api.hive.blue" },
+  { url: "https://rpc.ausbit.dev", name: "rpc.ausbit.dev" },
+];
+
+// DHive client initialization with default node
+let client = new dhive.Client([currentNodeUrl, "https://api.syncad.com"]);
+
 
 // Initialize the app when the DOM is fully loaded
 document.addEventListener("DOMContentLoaded", function () {
   // Set up event listeners
   setupEventListeners();
+  
+  // Initialize node selector
+  initializeNodeSelector();
+  
+  // Check current node status on load
+  checkNodeStatus(currentNodeUrl);
 });
 
 // Set up all event listeners
@@ -51,6 +76,14 @@ function setupEventListeners() {
 
   // Step 4: Start Over button
   document.getElementById("startOverBtn").addEventListener("click", startOver);
+
+  // Node selector dropdown event listener
+  document.getElementById("nodeSelector").addEventListener("click", function(e) {
+    // Prevent immediate closing of dropdown when clicking the button
+    if (e.target.id === "nodeSelector" || e.target.closest("#nodeSelector")) {
+      e.stopPropagation();
+    }
+  });
 
   // Generate a password on initial load of step 2
   generateNewPassword();
@@ -92,11 +125,24 @@ function generateNewPassword() {
     // Check if our BIP39 implementation is available
     if (typeof BIP39 !== "undefined") {
       console.log("Using custom BIP39 implementation");
+      
+      // Disable the button while generating
+      const generateBtn = document.getElementById("generatePasswordBtn");
+      if (generateBtn) {
+        generateBtn.disabled = true;
+        generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Generating...';
+      }
 
-      // Generate 128-bit mnemonic (12 words)
+      // Generate the mnemonic using the simplified implementation
       const mnemonic = BIP39.generateMnemonic(128);
       console.log("Generated mnemonic successfully");
       newPasswordInput.value = mnemonic;
+      
+      // Re-enable the button
+      if (generateBtn) {
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Generate New Suggestion';
+      }
     } else {
       console.error("BIP39 implementation not available");
       newPasswordInput.value = "ERROR: BIP39 implementation not available";
@@ -104,6 +150,13 @@ function generateNewPassword() {
   } catch (error) {
     console.error("Error generating mnemonic:", error);
     newPasswordInput.value = `Error generating mnemonic: ${error.message}`;
+    
+    // Make sure to re-enable the button if there was an error
+    const generateBtn = document.getElementById("generatePasswordBtn");
+    if (generateBtn) {
+      generateBtn.disabled = false;
+      generateBtn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Generate New Suggestion';
+    }
   }
 }
 
@@ -640,4 +693,199 @@ function startOver() {
   document.getElementById("ownerWif").value = "";
   generateNewPassword(); // Generate a fresh password
   showStep(1);
+}
+
+// Initialize the node selector dropdown
+function initializeNodeSelector() {
+  const nodeList = document.getElementById("nodeList");
+  const currentNodeText = document.getElementById("currentNodeText");
+  
+  // Clear existing items
+  nodeList.innerHTML = "";
+  
+  // Add nodes to dropdown
+  hiveNodes.forEach(node => {
+    const li = document.createElement("li");
+    const a = document.createElement("a");
+    a.className = "dropdown-item";
+    a.href = "#";
+    a.dataset.nodeUrl = node.url;
+    
+    // Create status indicator and node name
+    a.innerHTML = `<span class="node-name">${node.name}</span> <span class="node-status ms-1"><i class="fas fa-circle"></i></span>`;
+    
+    // Add click event to change node
+    a.addEventListener("click", function(e) {
+      e.preventDefault();
+      changeNode(node.url, node.name);
+    });
+    
+    li.appendChild(a);
+    nodeList.appendChild(li);
+    
+    // Check status of this node
+    checkNodeItemStatus(node.url, a.querySelector(".node-status"));
+  });
+  
+  // Set initial node text
+  const defaultNode = hiveNodes.find(node => node.url === currentNodeUrl);
+  if (defaultNode) {
+    currentNodeText.textContent = defaultNode.name;
+  }
+}
+
+// Change the current Hive node
+function changeNode(nodeUrl, nodeName) {
+  // Update UI first for immediate feedback
+  const currentNodeText = document.getElementById("currentNodeText");
+  currentNodeText.textContent = nodeName;
+  
+  // Update status indicator to "checking"
+  const nodeStatus = document.getElementById("nodeStatus");
+  nodeStatus.className = "node-status ms-1 checking";
+  
+  // Clear version info while checking
+  document.getElementById("nodeVersionInfo").textContent = "Checking node status...";
+  
+  // Update the current node URL
+  currentNodeUrl = nodeUrl;
+  
+  // Create a new client with the selected node
+  client = new dhive.Client([nodeUrl, "https://api.syncad.com"]);
+  
+  // Check the status of the new node
+  checkNodeStatus(nodeUrl);
+}
+
+// Check the status of a specific node in the dropdown list
+async function checkNodeItemStatus(nodeUrl, statusElement) {
+  try {
+    // Create a temporary client for this specific node
+    const tempClient = new dhive.Client([nodeUrl]);
+    
+    // Set status to checking
+    statusElement.className = "node-status ms-1 checking";
+    
+    // Try to get dynamic global properties with a timeout
+    const timeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error("Timeout")), 5000)
+    );
+    
+    await Promise.race([
+      tempClient.database.getDynamicGlobalProperties(),
+      timeout
+    ]);
+    
+    // If we get here, the node is online
+    statusElement.className = "node-status ms-1 online";
+  } catch (error) {
+    // Node is offline or timed out
+    statusElement.className = "node-status ms-1 offline";
+  }
+}
+
+// Check the status of the current node
+async function checkNodeStatus(nodeUrl) {
+  const nodeStatus = document.getElementById("nodeStatus");
+  const nodeVersionInfo = document.getElementById("nodeVersionInfo");
+  
+  // Set status to checking
+  nodeStatus.className = "node-status ms-1 checking";
+  
+  try {
+    // Try to get dynamic global properties with a timeout
+    const timeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error("Timeout")), 5000)
+    );
+    
+    const dgpo = await Promise.race([
+      client.database.getDynamicGlobalProperties(),
+      timeout
+    ]);
+    
+    // If we get here, the node is online
+    nodeStatus.className = "node-status ms-1 online";
+    
+    // Try to get version info
+    try {
+      const config = await client.database.getConfig();
+      if (config && config.HIVE_BLOCKCHAIN_VERSION) {
+        nodeVersionInfo.textContent = `Version: ${config.HIVE_BLOCKCHAIN_VERSION}`;
+      } else {
+        nodeVersionInfo.textContent = "Connected";
+      }
+    } catch (versionError) {
+      // If we can't get version but node is online
+      nodeVersionInfo.textContent = "Connected";
+    }
+    
+    // Update all node statuses in the dropdown
+    updateAllNodeStatuses();
+    
+    return true;
+  } catch (error) {
+    // Node is offline or timed out
+    nodeStatus.className = "node-status ms-1 offline";
+    nodeVersionInfo.textContent = "Offline or unavailable";
+    
+    // Try to switch to a backup node if current one is down
+    if (nodeUrl === currentNodeUrl) {
+      tryBackupNode();
+    }
+    
+    return false;
+  }
+}
+
+// Try to find a working backup node if current one is down
+async function tryBackupNode() {
+  // Skip if we're already checking a different node
+  if (document.getElementById("nodeStatus").classList.contains("checking")) {
+    return;
+  }
+  
+  // Look for an alternative node
+  for (const node of hiveNodes) {
+    // Skip the current node that's already failing
+    if (node.url === currentNodeUrl) continue;
+    
+    // Create a temporary client for this node
+    const tempClient = new dhive.Client([node.url]);
+    
+    try {
+      // Try to get dynamic global properties with a timeout
+      const timeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Timeout")), 3000)
+      );
+      
+      await Promise.race([
+        tempClient.database.getDynamicGlobalProperties(),
+        timeout
+      ]);
+      
+      // If we get here, we found a working node, switch to it
+      console.log(`Switching to backup node: ${node.name}`);
+      changeNode(node.url, node.name);
+      return;
+    } catch (error) {
+      // This node didn't work, try the next one
+      continue;
+    }
+  }
+  
+  // If we get here, all nodes failed
+  console.error("All Hive nodes appear to be offline");
+}
+
+// Update status indicators for all nodes in the dropdown
+function updateAllNodeStatuses() {
+  const nodeItems = document.querySelectorAll("#nodeList .dropdown-item");
+  
+  nodeItems.forEach(item => {
+    const nodeUrl = item.dataset.nodeUrl;
+    const statusElement = item.querySelector(".node-status");
+    
+    // Check status of each node
+    checkNodeItemStatus(nodeUrl, statusElement);
+  });
 }
