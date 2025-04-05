@@ -545,9 +545,15 @@ function displayKeysInTable(keys) {
     tableBody.appendChild(row);
   }
 
-  // Reset keys downloaded status and update button state
+  // Reset keys downloaded status and update button state - hide update button initially
   keysDownloaded = false;
   updateButtonState();
+  
+  // Make sure update button is initially hidden when keys are first displayed
+  const updateBtn = document.getElementById("updateKeysBtn");
+  if (updateBtn) {
+    updateBtn.classList.add("d-none");
+  }
 }
 
 // Copy text to clipboard with feedback
@@ -591,18 +597,8 @@ async function downloadKeysAsJson() {
   keysDownloaded = true;
   updateButtonState();
 
-  // Provide visual feedback that keys were downloaded
-  const downloadBtn = document.getElementById("downloadKeysBtn");
-  const originalHTML = downloadBtn.innerHTML;
-  downloadBtn.innerHTML = '<i class="fas fa-check"></i> Keys Downloaded';
-  downloadBtn.classList.remove("btn-info");
-  downloadBtn.classList.add("btn-success");
-
-  setTimeout(() => {
-    downloadBtn.innerHTML = originalHTML;
-    downloadBtn.classList.remove("btn-success");
-    downloadBtn.classList.add("btn-info");
-  }, 2000);
+  // Keys have been downloaded - update UI state
+  updateButtonState();
 }
 
 // Step 3: Update account keys
@@ -612,86 +608,131 @@ async function updateKeys() {
     return;
   }
 
+  // Enforce key download requirement - critical security check
+  if (!keysDownloaded) {
+    showError("You MUST download your keys before updating your account. This is for your safety.");
+    return;
+  }
+
   const accountName = document.getElementById("accountName").value.trim();
-  const newPassword = document.getElementById("newPassword").value.trim();
   
-  // For immediate troubleshooting, read the owner key from the input field again
-  // This is a fallback mechanism in case memory storage failed
-  const ownerWifInput = document.getElementById("ownerWif").value.trim();
-  const ownerWifFromMemory = privateKeyStorage['owner_wif'];
-  
-  // Use either the stored key or the input key
-  const ownerWif = ownerWifFromMemory || ownerWifInput;
+  // Get the owner key directly from input (most reliable method)
+  const ownerWif = document.getElementById("ownerWif").value.trim();
   
   if (!ownerWif) {
     showError("Please enter your owner private key (WIF).");
     return;
   }
-  
-  // Log for debugging purposes
-  console.log("Owner key available: ", Boolean(ownerWif));
-  console.log("From memory: ", Boolean(ownerWifFromMemory));
-  console.log("From input: ", Boolean(ownerWifInput));
-  
-  // Reset the expiration timer when proceeding with key update
-  if (keyExpirationTimer) {
-    clearTimeout(keyExpirationTimer);
-  }
-  keyExpirationTimer = setTimeout(() => {
-    privateKeyStorage = {};
-    console.log("Private keys cleared from memory due to timeout");
-  }, 30 * 60 * 1000); // 30 minutes
-  
-  // Start countdown timer for safety
-  let countdown = 10;
+
+  // Get the update button
   const updateBtn = document.getElementById("updateKeysBtn");
-  const originalText = updateBtn.innerHTML;
-  let countdownTimer;
   
-  // Create a confirmation dialog
+  // Create simple confirmation dialog
   const confirmationAlert = document.createElement("div");
   confirmationAlert.className = "alert alert-danger mt-3";
   confirmationAlert.innerHTML = `
     <strong><i class="fas fa-exclamation-triangle me-2"></i>WARNING:</strong>
     This action is irreversible! Your account keys will be permanently changed.
-    <div class="mt-2">Please ensure you have saved your new keys before proceeding.</div>
+    <div class="mt-2 fw-bold">Have you downloaded and securely backed up your new keys?</div>
+    <div class="d-flex justify-content-between mt-3">
+      <button id="cancelUpdateBtn" class="btn btn-secondary">
+        <i class="fas fa-times me-1"></i>Cancel
+      </button>
+      <button id="confirmUpdateBtn" class="btn btn-danger">
+        <i class="fas fa-check me-1"></i>Yes, Update My Keys
+      </button>
+    </div>
   `;
   
-  // Insert the confirmation alert before the update button
-  const buttonsContainer = updateBtn.parentNode;
-  buttonsContainer.insertBefore(confirmationAlert, updateBtn);
+  // Store original button state
+  const originalButtonHTML = updateBtn.innerHTML;
+  const originalButtonClass = updateBtn.className;
   
-  // Make the button clickable but change its style to indicate caution
-  updateBtn.classList.remove("btn-primary");
-  updateBtn.classList.add("btn-danger");
+  // Disable the original button during confirmation
+  updateBtn.disabled = true;
   
-  // Start the countdown
-  countdownTimer = setInterval(() => {
-    updateBtn.innerHTML = `<i class="fas fa-exclamation-triangle me-1"></i>Updating in ${countdown}... Click to cancel`;
-    countdown--;
-    
-    if (countdown < 0) {
-      clearInterval(countdownTimer);
-      // Proceed with the update
-      performKeyUpdate();
-    }
-  }, 1000);
+  // Insert the confirmation dialog
+  const parentDiv = updateBtn.parentNode;
+  parentDiv.insertBefore(confirmationAlert, updateBtn);
   
-  // Allow cancellation
-  updateBtn.addEventListener("click", () => {
-    clearInterval(countdownTimer);
-    updateBtn.innerHTML = originalText;
-    // Restore original button style
-    updateBtn.classList.remove("btn-danger");
-    updateBtn.classList.add("btn-primary");
-    // Remove the confirmation alert
+  // Handle cancel button
+  document.getElementById("cancelUpdateBtn").addEventListener("click", () => {
+    // Remove confirmation dialog
     if (confirmationAlert.parentNode) {
       confirmationAlert.parentNode.removeChild(confirmationAlert);
     }
-  }, { once: true });
+    
+    // Restore button
+    updateBtn.disabled = false;
+  });
   
-  // Function to perform the actual key update after countdown
-  async function performKeyUpdate() {
+  // Handle confirm button
+  document.getElementById("confirmUpdateBtn").addEventListener("click", async () => {
+    // Show the user it's processing by changing the confirmation button
+    const confirmBtn = document.getElementById("confirmUpdateBtn");
+    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
+    confirmBtn.disabled = true;
+    
+    // Also disable the cancel button during processing
+    document.getElementById("cancelUpdateBtn").disabled = true;
+    
+    try {
+      // Validate owner key
+      let ownerKey;
+      try {
+        ownerKey = dhive.PrivateKey.fromString(ownerWif);
+        const publicKey = ownerKey.createPublic().toString();
+        
+        // Fetch account if not already done
+        if (!currentAccount) {
+          const accounts = await client.database.getAccounts([accountName]);
+          if (accounts.length === 0) {
+            throw new Error("Account not found");
+          }
+          currentAccount = accounts[0];
+        }
+        
+        // Verify the key matches the account
+        let keyMatchesAccount = false;
+        if (currentAccount.owner && currentAccount.owner.key_auths) {
+          for (const [pubKey, weight] of currentAccount.owner.key_auths) {
+            if (pubKey === publicKey) {
+              keyMatchesAccount = true;
+              break;
+            }
+          }
+        }
+        
+        if (!keyMatchesAccount) {
+          throw new Error("The provided owner key does not match this account's owner authority");
+        }
+      } catch (e) {
+        showError("Invalid owner key: " + e.message);
+        
+        // Restore confirmation dialog
+        confirmBtn.innerHTML = '<i class="fas fa-check me-1"></i>Yes, Update My Keys';
+        confirmBtn.disabled = false;
+        document.getElementById("cancelUpdateBtn").disabled = false;
+        return;
+      }
+      
+      // Proceed with the key update
+      performKeyUpdate(ownerWif, accountName);
+    } catch (error) {
+      showError("Error: " + error.message);
+      
+      // Remove confirmation dialog
+      if (confirmationAlert.parentNode) {
+        confirmationAlert.parentNode.removeChild(confirmationAlert);
+      }
+      
+      // Restore button
+      updateBtn.disabled = false;
+    }
+  });
+  
+  // Function to perform the actual key update
+  async function performKeyUpdate(ownerWif, accountName) {
     // Prepare the authority update
     const ownerAuth = {
       weight_threshold: 1,
@@ -892,28 +933,62 @@ async function updateKeys() {
 // Update the state of the update button based on whether keys have been downloaded
 function updateButtonState() {
   const updateBtn = document.getElementById("updateKeysBtn");
+  const downloadBtn = document.getElementById("downloadKeysBtn");
+  const buttonContainer = document.querySelector("#step3 .d-grid");
 
   if (keysDownloaded) {
-    // Enable button if keys have been downloaded
-    updateBtn.disabled = false;
-    updateBtn.title = "";
+    // Show the update button only after keys have been downloaded
+    updateBtn.classList.remove("d-none");
+    
+    // Change download button appearance to show it's been completed
+    downloadBtn.classList.remove("btn-info");
+    downloadBtn.classList.add("btn-success");
+    downloadBtn.innerHTML = '<i class="fas fa-check me-1"></i>Keys Downloaded';
+    
+    // Remove any warning messages
+    const warningMsg = document.getElementById("downloadWarning");
+    if (warningMsg && warningMsg.parentNode) {
+      warningMsg.parentNode.removeChild(warningMsg);
+    }
+    
+    // Add a success message
+    let successMsg = document.getElementById("downloadSuccess");
+    if (!successMsg) {
+      successMsg = document.createElement("div");
+      successMsg.id = "downloadSuccess";
+      successMsg.className = "alert alert-success mb-3";
+      successMsg.innerHTML = 
+        '<i class="fas fa-check-circle me-2"></i>Keys downloaded! You can now update your account.';
+      
+      // Insert before the buttons
+      buttonContainer.parentNode.insertBefore(successMsg, buttonContainer);
+    }
   } else {
-    // Disable button if keys haven't been downloaded
-    updateBtn.disabled = true;
-    updateBtn.title = "Please download your keys first";
-
-    // Add message above the button
+    // Hide the update button until keys are downloaded
+    updateBtn.classList.add("d-none");
+    
+    // Reset download button appearance
+    downloadBtn.classList.remove("btn-success");
+    downloadBtn.classList.add("btn-info");
+    downloadBtn.innerHTML = '<i class="fas fa-download me-1"></i>Download Keys as JSON';
+    
+    // Add warning message about downloading keys
     let warningMsg = document.getElementById("downloadWarning");
     if (!warningMsg) {
       warningMsg = document.createElement("div");
       warningMsg.id = "downloadWarning";
-      warningMsg.className = "alert alert-danger mb-3";
+      warningMsg.className = "alert alert-warning mb-3";
       warningMsg.innerHTML =
-        '<i class="fas fa-exclamation-triangle me-2"></i>You must download your keys before updating your account!';
+        '<i class="fas fa-exclamation-triangle me-2"></i><strong>Important:</strong> You must download and securely back up your keys before updating your account!';
 
       // Insert before the buttons
-      const buttonsContainer = document.querySelector("#step3 .d-grid");
-      buttonsContainer.parentNode.insertBefore(warningMsg, buttonsContainer);
+      buttonContainer.parentNode.insertBefore(warningMsg, buttonContainer);
+    }
+    
+    // Remove any success messages
+    const successMsg = document.getElementById("downloadSuccess");
+    if (successMsg && successMsg.parentNode) {
+      successMsg.parentNode.removeChild(successMsg);
     }
   }
 }
