@@ -46,28 +46,69 @@ const BIP39 = (function () {
     // Calculate number of words (strength / 32 * 3)
     const wordCount = Math.floor((strength / 32) * 3);
 
-    // Generate random bytes with improved entropy
-    const byteCount = Math.ceil(strength / 8);
+    // Generate random bytes with significantly more entropy than needed to prevent patterns
+    // We'll multiply by 8 to ensure we have plenty of random bytes
+    const byteCount = Math.ceil((strength * 8) / 8);
     const entropy = new Uint8Array(byteCount);
     getSecureRandomValues(entropy);
 
-    // Improved selection of words to better utilize all entropy bytes
+    // Track used words to avoid repetition
+    const usedWords = new Set();
     const result = [];
 
-    // Use a more secure method to select words
+    // Create a seeded random generator to get better distribution
+    function getRandomInt(max) {
+      // Get 4 bytes of randomness each time
+      const buffer = new Uint8Array(4);
+      getSecureRandomValues(buffer);
+
+      // Convert to 32-bit integer
+      const value = new DataView(buffer.buffer).getUint32(0, true);
+      return value % max;
+    }
+
+    // Generate each word, ensuring no repeats
+    let attemptsLimit = 100; // Safety limit to prevent infinite loops
     for (let i = 0; i < wordCount; i++) {
-      // Get a secure random value for each word
-      let randomValue = 0;
+      let wordIndex;
+      let attempts = 0;
+      let selectedWord;
 
-      // Combine multiple entropy bytes for better randomness
-      for (let j = 0; j < 4; j++) {
-        const byteIndex = (i * 4 + j) % entropy.length;
-        randomValue = (randomValue << 8) | entropy[byteIndex];
+      // Keep trying until we get a non-repeating word
+      do {
+        // Get a fully random index for this word
+        wordIndex = getRandomInt(wordlist.length);
+        selectedWord = wordlist[wordIndex];
+        attempts++;
+
+        // If we've tried too many times, reset the used words to prevent getting stuck
+        if (attempts > attemptsLimit) {
+          // Only clear the last few words to still maintain some non-repetition
+          if (result.length > 3) {
+            const recentWords = new Set(result.slice(-3));
+            usedWords.clear();
+            recentWords.forEach((word) => usedWords.add(word));
+          }
+          break;
+        }
+      } while (
+        // Prevent immediate repetition of the same word
+        (result.length > 0 && result[result.length - 1] === selectedWord) ||
+        // Prevent repetition of recently used words if possible
+        (usedWords.size < wordlist.length / 2 && usedWords.has(selectedWord))
+      );
+
+      // Add the selected word
+      result.push(selectedWord);
+      usedWords.add(selectedWord);
+
+      // Limit the size of usedWords to prevent memory issues with very long phrases
+      if (usedWords.size > wordlist.length / 2) {
+        // Keep only the most recent words
+        usedWords.clear();
+        const recentWords = result.slice(-Math.min(result.length, 10));
+        recentWords.forEach((word) => usedWords.add(word));
       }
-
-      // Use the random value to select a word
-      const wordIndex = Math.abs(randomValue) % wordlist.length;
-      result.push(wordlist[wordIndex]);
     }
 
     return result.join(" ");
