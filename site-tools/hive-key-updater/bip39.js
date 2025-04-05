@@ -33,7 +33,9 @@ const BIP39 = (function () {
         return window.crypto.getRandomValues(buffer);
       } else {
         // Fallback to Math.random with warning
-        console.warn('Using Math.random fallback which is not cryptographically secure');
+        console.warn(
+          "Using Math.random fallback which is not cryptographically secure",
+        );
         for (let i = 0; i < buffer.length; i++) {
           buffer[i] = Math.floor(Math.random() * 256);
         }
@@ -43,37 +45,37 @@ const BIP39 = (function () {
 
     // Calculate number of words (strength / 32 * 3)
     const wordCount = Math.floor((strength / 32) * 3);
-    
+
     // Generate random bytes with improved entropy
     const byteCount = Math.ceil(strength / 8);
     const entropy = new Uint8Array(byteCount);
     getSecureRandomValues(entropy);
-    
+
     // Improved selection of words to better utilize all entropy bytes
     const result = [];
-    
+
     // Use a more secure method to select words
     for (let i = 0; i < wordCount; i++) {
       // Get a secure random value for each word
       let randomValue = 0;
-      
+
       // Combine multiple entropy bytes for better randomness
       for (let j = 0; j < 4; j++) {
         const byteIndex = (i * 4 + j) % entropy.length;
         randomValue = (randomValue << 8) | entropy[byteIndex];
       }
-      
+
       // Use the random value to select a word
       const wordIndex = Math.abs(randomValue) % wordlist.length;
       result.push(wordlist[wordIndex]);
     }
-    
+
     return result.join(" ");
   }
 
   // Return public methods
   return {
-    generateMnemonic: generateMnemonic
+    generateMnemonic: generateMnemonic,
   };
 })();
 

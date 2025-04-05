@@ -31,15 +31,14 @@ const hiveNodes = [
 // DHive client initialization with default node
 let client = new dhive.Client([currentNodeUrl, "https://api.syncad.com"]);
 
-
 // Initialize the app when the DOM is fully loaded
 document.addEventListener("DOMContentLoaded", function () {
   // Set up event listeners
   setupEventListeners();
-  
+
   // Initialize node selector
   initializeNodeSelector();
-  
+
   // Check current node status on load
   checkNodeStatus(currentNodeUrl);
 });
@@ -82,12 +81,14 @@ function setupEventListeners() {
   document.getElementById("startOverBtn").addEventListener("click", startOver);
 
   // Node selector dropdown event listener
-  document.getElementById("nodeSelector").addEventListener("click", function(e) {
-    // Prevent immediate closing of dropdown when clicking the button
-    if (e.target.id === "nodeSelector" || e.target.closest("#nodeSelector")) {
-      e.stopPropagation();
-    }
-  });
+  document
+    .getElementById("nodeSelector")
+    .addEventListener("click", function (e) {
+      // Prevent immediate closing of dropdown when clicking the button
+      if (e.target.id === "nodeSelector" || e.target.closest("#nodeSelector")) {
+        e.stopPropagation();
+      }
+    });
 
   // Generate a password on initial load of step 2
   generateNewPassword();
@@ -115,13 +116,15 @@ async function checkAccount() {
     try {
       ownerKey = dhive.PrivateKey.fromString(ownerWif);
     } catch (e) {
-      showError("Invalid owner private key format. Please check your key and try again.");
+      showError(
+        "Invalid owner private key format. Please check your key and try again.",
+      );
       return;
     }
-    
+
     // Get the derived public key from the private key
     const derivedPublicKey = ownerKey.createPublic().toString();
-    
+
     // Check if account exists on Hive
     const accounts = await client.database.getAccounts([accountName]);
 
@@ -131,7 +134,7 @@ async function checkAccount() {
     }
 
     const account = accounts[0];
-    
+
     // Check if the provided owner key matches any of the account's owner keys
     let keyMatchesAccount = false;
     if (account.owner && account.owner.key_auths) {
@@ -142,31 +145,38 @@ async function checkAccount() {
         }
       }
     }
-    
+
     if (!keyMatchesAccount) {
-      showError("The provided owner key does not match this account's owner authority. Please verify your key and try again.");
+      showError(
+        "The provided owner key does not match this account's owner authority. Please verify your key and try again.",
+      );
       return;
     }
-    
+
     // Store account information for later use
     currentAccount = account;
-    
+
     // Store the validated owner key in memory for security
-    privateKeyStorage['owner_wif'] = ownerWif;
-    
+    privateKeyStorage["owner_wif"] = ownerWif;
+
     // Set up expiration timer for the key - using a much longer timeout for the full process
     if (keyExpirationTimer) {
       clearTimeout(keyExpirationTimer);
     }
-    keyExpirationTimer = setTimeout(() => {
-      privateKeyStorage = {};
-      console.log("Private keys cleared from memory due to timeout");
-      // Show notification if user is still on the page
-      showError("For security reasons, your private keys have been cleared from memory due to inactivity.");
-    }, 30 * 60 * 1000); // 30 minutes - enough time to complete the full process
+    keyExpirationTimer = setTimeout(
+      () => {
+        privateKeyStorage = {};
+        console.log("Private keys cleared from memory due to timeout");
+        // Show notification if user is still on the page
+        showError(
+          "For security reasons, your private keys have been cleared from memory due to inactivity.",
+        );
+      },
+      30 * 60 * 1000,
+    ); // 30 minutes - enough time to complete the full process
 
     console.log("Owner key validation successful");
-    
+
     // Move to step 2
     showStep(2);
   } catch (error) {
@@ -181,23 +191,25 @@ function generateNewPassword() {
     // Check if our BIP39 implementation is available
     if (typeof BIP39 !== "undefined") {
       console.log("Using custom BIP39 implementation");
-      
+
       // Disable the button while generating
       const generateBtn = document.getElementById("generatePasswordBtn");
       if (generateBtn) {
         generateBtn.disabled = true;
-        generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Generating...';
+        generateBtn.innerHTML =
+          '<i class="fas fa-spinner fa-spin me-1"></i>Generating...';
       }
 
       // Generate the mnemonic using the simplified implementation
       const mnemonic = BIP39.generateMnemonic(128);
       console.log("Generated mnemonic successfully");
       newPasswordInput.value = mnemonic;
-      
+
       // Re-enable the button
       if (generateBtn) {
         generateBtn.disabled = false;
-        generateBtn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Generate New Suggestion';
+        generateBtn.innerHTML =
+          '<i class="fas fa-sync-alt me-1"></i>Generate New Suggestion';
       }
     } else {
       console.error("BIP39 implementation not available");
@@ -206,12 +218,13 @@ function generateNewPassword() {
   } catch (error) {
     console.error("Error generating mnemonic:", error);
     newPasswordInput.value = `Error generating mnemonic: ${error.message}`;
-    
+
     // Make sure to re-enable the button if there was an error
     const generateBtn = document.getElementById("generatePasswordBtn");
     if (generateBtn) {
       generateBtn.disabled = false;
-      generateBtn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Generate New Suggestion';
+      generateBtn.innerHTML =
+        '<i class="fas fa-sync-alt me-1"></i>Generate New Suggestion';
     }
   }
 }
@@ -234,8 +247,8 @@ function copyPasswordToClipboard() {
 // Copy the master password from the preview display to clipboard
 function copyMasterPasswordToClipboard() {
   // Get master password from memory storage instead of DOM
-  const masterPassword = privateKeyStorage['master'];
-  
+  const masterPassword = privateKeyStorage["master"];
+
   if (masterPassword) {
     navigator.clipboard.writeText(masterPassword).then(() => {
       // Show feedback
@@ -245,19 +258,24 @@ function copyMasterPasswordToClipboard() {
       setTimeout(() => {
         copyBtn.innerHTML = originalHTML;
       }, 1500);
-      
+
       // Reset the key expiration timer when copying master password
       if (keyExpirationTimer) {
         clearTimeout(keyExpirationTimer);
-        keyExpirationTimer = setTimeout(() => {
-          privateKeyStorage = {};
-          console.log("Private keys cleared from memory due to timeout");
-        }, 30 * 60 * 1000); // Reset to 30 minutes
+        keyExpirationTimer = setTimeout(
+          () => {
+            privateKeyStorage = {};
+            console.log("Private keys cleared from memory due to timeout");
+          },
+          30 * 60 * 1000,
+        ); // Reset to 30 minutes
       }
     });
   } else {
     // Master password has expired
-    alert("For security, the master password has expired. Please regenerate keys.");
+    alert(
+      "For security, the master password has expired. Please regenerate keys.",
+    );
   }
 }
 
@@ -268,8 +286,8 @@ function toggleMasterPasswordVisibility() {
 
   if (masterPasswordEl.classList.contains("key-masked")) {
     // Get master password from memory storage
-    const masterPassword = privateKeyStorage['master'];
-    
+    const masterPassword = privateKeyStorage["master"];
+
     if (masterPassword) {
       // Reveal the password from memory
       masterPasswordEl.textContent = masterPassword;
@@ -279,10 +297,13 @@ function toggleMasterPasswordVisibility() {
       // Reset the key expiration timer when viewing master password
       if (keyExpirationTimer) {
         clearTimeout(keyExpirationTimer);
-        keyExpirationTimer = setTimeout(() => {
-          privateKeyStorage = {};
-          console.log("Private keys cleared from memory due to timeout");
-        }, 30 * 60 * 1000); // Reset to 30 minutes
+        keyExpirationTimer = setTimeout(
+          () => {
+            privateKeyStorage = {};
+            console.log("Private keys cleared from memory due to timeout");
+          },
+          30 * 60 * 1000,
+        ); // Reset to 30 minutes
       }
 
       // Auto-hide after 10 seconds for security
@@ -328,15 +349,18 @@ async function previewKeys() {
 
     // Display the keys in the table
     displayKeysInTable(generatedKeys);
-    
+
     // Reset the expiration timer when previewing keys
     if (keyExpirationTimer) {
       clearTimeout(keyExpirationTimer);
     }
-    keyExpirationTimer = setTimeout(() => {
-      privateKeyStorage = {};
-      console.log("Private keys cleared from memory due to timeout");
-    }, 30 * 60 * 1000); // 30 minutes
+    keyExpirationTimer = setTimeout(
+      () => {
+        privateKeyStorage = {};
+        console.log("Private keys cleared from memory due to timeout");
+      },
+      30 * 60 * 1000,
+    ); // 30 minutes
 
     // Move to step 3
     showStep(3);
@@ -368,39 +392,43 @@ function generateKeysFromPassword(accountName, password) {
 function displayKeysInTable(keys) {
   const tableBody = document.querySelector("#keysTable tbody");
   tableBody.innerHTML = "";
-  
+
   // Get the master password
   const masterPassword = document.getElementById("newPassword").value.trim();
-  
+
   // Store master password in memory - without clearing other keys
-  privateKeyStorage['master'] = masterPassword;
-  
+  privateKeyStorage["master"] = masterPassword;
+
   // Store the private keys for each role in memory
-  
+
   // Set up expiration timer for security
   if (keyExpirationTimer) {
     clearTimeout(keyExpirationTimer);
   }
-  
-  keyExpirationTimer = setTimeout(() => {
-    // Clear private keys after timeout for security
-    privateKeyStorage = {};
-    console.log("Private keys cleared from memory due to timeout");
-    
-    // Notify user that keys have been cleared
-    const notification = document.createElement("div");
-    notification.className = "alert alert-warning alert-dismissible fade show mt-3";
-    notification.innerHTML = `
+
+  keyExpirationTimer = setTimeout(
+    () => {
+      // Clear private keys after timeout for security
+      privateKeyStorage = {};
+      console.log("Private keys cleared from memory due to timeout");
+
+      // Notify user that keys have been cleared
+      const notification = document.createElement("div");
+      notification.className =
+        "alert alert-warning alert-dismissible fade show mt-3";
+      notification.innerHTML = `
       <i class="fas fa-clock me-2"></i>
       For security, private keys have been cleared from memory after inactivity.
       <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     `;
-    
-    const keysTable = document.querySelector("#keysTable");
-    if (keysTable && keysTable.parentNode) {
-      keysTable.parentNode.insertBefore(notification, keysTable);
-    }
-  }, 30 * 60 * 1000); // 30 minutes
+
+      const keysTable = document.querySelector("#keysTable");
+      if (keysTable && keysTable.parentNode) {
+        keysTable.parentNode.insertBefore(notification, keysTable);
+      }
+    },
+    30 * 60 * 1000,
+  ); // 30 minutes
 
   // Display the master password in the separate display area (hidden by default)
   const masterPasswordDisplay = document.getElementById(
@@ -439,7 +467,7 @@ function displayKeysInTable(keys) {
     privateKeySpan.textContent = "••••••••••••••••••••••••••••••••••••••••••••";
     privateKeySpan.className = "key-value key-masked";
     privateKeySpan.dataset.keyId = role; // Store only the role ID, not the actual key
-    
+
     // Store the actual private key in memory, not in DOM
     privateKeyStorage[role] = keys[role].private;
 
@@ -458,7 +486,7 @@ function displayKeysInTable(keys) {
         // Get the key ID and retrieve the actual key from memory
         const keyId = privateKeySpan.dataset.keyId;
         const actualKey = privateKeyStorage[keyId];
-        
+
         if (actualKey) {
           // Reveal the key from memory
           privateKeySpan.textContent = actualKey;
@@ -468,16 +496,20 @@ function displayKeysInTable(keys) {
           // Reset the key expiration timer when viewing keys
           if (keyExpirationTimer) {
             clearTimeout(keyExpirationTimer);
-            keyExpirationTimer = setTimeout(() => {
-              privateKeyStorage = {};
-              console.log("Private keys cleared from memory due to timeout");
-            }, 5 * 60 * 1000); // Reset to 5 minutes
+            keyExpirationTimer = setTimeout(
+              () => {
+                privateKeyStorage = {};
+                console.log("Private keys cleared from memory due to timeout");
+              },
+              5 * 60 * 1000,
+            ); // Reset to 5 minutes
           }
 
           // Auto-hide after 10 seconds for security
           setTimeout(() => {
             if (!privateKeySpan.classList.contains("key-masked")) {
-              privateKeySpan.textContent = "••••••••••••••••••••••••••••••••••••••••••••";
+              privateKeySpan.textContent =
+                "••••••••••••••••••••••••••••••••••••••••••••";
               privateKeySpan.classList.add("key-masked");
               revealBtn.innerHTML = '<i class="fas fa-eye"></i>';
             }
@@ -486,13 +518,15 @@ function displayKeysInTable(keys) {
           // Key has expired or is not available
           privateKeySpan.textContent = "[Key expired for security]";
           setTimeout(() => {
-            privateKeySpan.textContent = "••••••••••••••••••••••••••••••••••••••••••••";
+            privateKeySpan.textContent =
+              "••••••••••••••••••••••••••••••••••••••••••••";
             privateKeySpan.classList.add("key-masked");
           }, 3000);
         }
       } else {
         // Hide the key again
-        privateKeySpan.textContent = "••••••••••••••••••••••••••••••••••••••••••••";
+        privateKeySpan.textContent =
+          "••••••••••••••••••••••••••••••••••••••••••••";
         privateKeySpan.classList.add("key-masked");
         revealBtn.innerHTML = '<i class="fas fa-eye"></i>';
       }
@@ -523,18 +557,23 @@ function displayKeysInTable(keys) {
       const privateKey = privateKeyStorage[role];
       if (privateKey) {
         copyToClipboard(privateKey, copyPrivateBtn);
-        
+
         // Reset the key expiration timer when copying keys
         if (keyExpirationTimer) {
           clearTimeout(keyExpirationTimer);
-          keyExpirationTimer = setTimeout(() => {
-            privateKeyStorage = {};
-            console.log("Private keys cleared from memory due to timeout");
-          }, 5 * 60 * 1000); // Reset to 5 minutes
+          keyExpirationTimer = setTimeout(
+            () => {
+              privateKeyStorage = {};
+              console.log("Private keys cleared from memory due to timeout");
+            },
+            5 * 60 * 1000,
+          ); // Reset to 5 minutes
         }
       } else {
         // Key has expired
-        alert("For security, the private key has expired. Please regenerate keys.");
+        alert(
+          "For security, the private key has expired. Please regenerate keys.",
+        );
       }
     };
 
@@ -548,7 +587,7 @@ function displayKeysInTable(keys) {
   // Reset keys downloaded status and update button state - hide update button initially
   keysDownloaded = false;
   updateButtonState();
-  
+
   // Make sure update button is initially hidden when keys are first displayed
   const updateBtn = document.getElementById("updateKeysBtn");
   if (updateBtn) {
@@ -610,15 +649,17 @@ async function updateKeys() {
 
   // Enforce key download requirement - critical security check
   if (!keysDownloaded) {
-    showError("You MUST download your keys before updating your account. This is for your safety.");
+    showError(
+      "You MUST download your keys before updating your account. This is for your safety.",
+    );
     return;
   }
 
   const accountName = document.getElementById("accountName").value.trim();
-  
+
   // Get the owner key directly from input (most reliable method)
   const ownerWif = document.getElementById("ownerWif").value.trim();
-  
+
   if (!ownerWif) {
     showError("Please enter your owner private key (WIF).");
     return;
@@ -626,7 +667,7 @@ async function updateKeys() {
 
   // Get the update button
   const updateBtn = document.getElementById("updateKeysBtn");
-  
+
   // Create simple confirmation dialog
   const confirmationAlert = document.createElement("div");
   confirmationAlert.className = "alert alert-danger mt-3";
@@ -643,94 +684,100 @@ async function updateKeys() {
       </button>
     </div>
   `;
-  
+
   // Store original button state
   const originalButtonHTML = updateBtn.innerHTML;
   const originalButtonClass = updateBtn.className;
-  
+
   // Disable the original button during confirmation
   updateBtn.disabled = true;
-  
+
   // Insert the confirmation dialog
   const parentDiv = updateBtn.parentNode;
   parentDiv.insertBefore(confirmationAlert, updateBtn);
-  
+
   // Handle cancel button
   document.getElementById("cancelUpdateBtn").addEventListener("click", () => {
     // Remove confirmation dialog
     if (confirmationAlert.parentNode) {
       confirmationAlert.parentNode.removeChild(confirmationAlert);
     }
-    
+
     // Restore button
     updateBtn.disabled = false;
   });
-  
+
   // Handle confirm button
-  document.getElementById("confirmUpdateBtn").addEventListener("click", async () => {
-    // Show the user it's processing by changing the confirmation button
-    const confirmBtn = document.getElementById("confirmUpdateBtn");
-    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
-    confirmBtn.disabled = true;
-    
-    // Also disable the cancel button during processing
-    document.getElementById("cancelUpdateBtn").disabled = true;
-    
-    try {
-      // Validate owner key
-      let ownerKey;
+  document
+    .getElementById("confirmUpdateBtn")
+    .addEventListener("click", async () => {
+      // Show the user it's processing by changing the confirmation button
+      const confirmBtn = document.getElementById("confirmUpdateBtn");
+      confirmBtn.innerHTML =
+        '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
+      confirmBtn.disabled = true;
+
+      // Also disable the cancel button during processing
+      document.getElementById("cancelUpdateBtn").disabled = true;
+
       try {
-        ownerKey = dhive.PrivateKey.fromString(ownerWif);
-        const publicKey = ownerKey.createPublic().toString();
-        
-        // Fetch account if not already done
-        if (!currentAccount) {
-          const accounts = await client.database.getAccounts([accountName]);
-          if (accounts.length === 0) {
-            throw new Error("Account not found");
+        // Validate owner key
+        let ownerKey;
+        try {
+          ownerKey = dhive.PrivateKey.fromString(ownerWif);
+          const publicKey = ownerKey.createPublic().toString();
+
+          // Fetch account if not already done
+          if (!currentAccount) {
+            const accounts = await client.database.getAccounts([accountName]);
+            if (accounts.length === 0) {
+              throw new Error("Account not found");
+            }
+            currentAccount = accounts[0];
           }
-          currentAccount = accounts[0];
-        }
-        
-        // Verify the key matches the account
-        let keyMatchesAccount = false;
-        if (currentAccount.owner && currentAccount.owner.key_auths) {
-          for (const [pubKey, weight] of currentAccount.owner.key_auths) {
-            if (pubKey === publicKey) {
-              keyMatchesAccount = true;
-              break;
+
+          // Verify the key matches the account
+          let keyMatchesAccount = false;
+          if (currentAccount.owner && currentAccount.owner.key_auths) {
+            for (const [pubKey, weight] of currentAccount.owner.key_auths) {
+              if (pubKey === publicKey) {
+                keyMatchesAccount = true;
+                break;
+              }
             }
           }
+
+          if (!keyMatchesAccount) {
+            throw new Error(
+              "The provided owner key does not match this account's owner authority",
+            );
+          }
+        } catch (e) {
+          showError("Invalid owner key: " + e.message);
+
+          // Restore confirmation dialog
+          confirmBtn.innerHTML =
+            '<i class="fas fa-check me-1"></i>Yes, Update My Keys';
+          confirmBtn.disabled = false;
+          document.getElementById("cancelUpdateBtn").disabled = false;
+          return;
         }
-        
-        if (!keyMatchesAccount) {
-          throw new Error("The provided owner key does not match this account's owner authority");
+
+        // Proceed with the key update
+        performKeyUpdate(ownerWif, accountName);
+      } catch (error) {
+        showError("Error: " + error.message);
+
+        // Remove confirmation dialog
+        if (confirmationAlert.parentNode) {
+          confirmationAlert.parentNode.removeChild(confirmationAlert);
         }
-      } catch (e) {
-        showError("Invalid owner key: " + e.message);
-        
-        // Restore confirmation dialog
-        confirmBtn.innerHTML = '<i class="fas fa-check me-1"></i>Yes, Update My Keys';
-        confirmBtn.disabled = false;
-        document.getElementById("cancelUpdateBtn").disabled = false;
-        return;
+
+        // Restore button
+        updateBtn.disabled = false;
       }
-      
-      // Proceed with the key update
-      performKeyUpdate(ownerWif, accountName);
-    } catch (error) {
-      showError("Error: " + error.message);
-      
-      // Remove confirmation dialog
-      if (confirmationAlert.parentNode) {
-        confirmationAlert.parentNode.removeChild(confirmationAlert);
-      }
-      
-      // Restore button
-      updateBtn.disabled = false;
-    }
-  });
-  
+    });
+
   // Function to perform the actual key update
   async function performKeyUpdate(ownerWif, accountName) {
     // Prepare the authority update
@@ -757,13 +804,16 @@ async function updateKeys() {
     try {
       // Validate the owner key (redundant validation for safety)
       const ownerKey = dhive.PrivateKey.fromString(ownerWif);
-      
+
       // If we got here, we have a valid key - for troubleshooting, try to derive public key
       const publicKey = ownerKey.createPublic().toString();
-      console.log("Successfully created public key: ", publicKey.substring(0, 8) + '...');
-      
+      console.log(
+        "Successfully created public key: ",
+        publicKey.substring(0, 8) + "...",
+      );
+
       // Store the key again in memory for redundant safety
-      privateKeyStorage['owner_wif'] = ownerWif;
+      privateKeyStorage["owner_wif"] = ownerWif;
 
       // Create and broadcast the transaction
       const op = [
@@ -780,11 +830,11 @@ async function updateKeys() {
 
       // Show a loading indicator
       showStep(4);
-      
+
       // Safely access DOM elements with null checks
       const successMessage = document.getElementById("successMessage");
       const errorMessage = document.getElementById("errorMessage");
-      
+
       if (successMessage) successMessage.classList.add("d-none");
       if (errorMessage) errorMessage.classList.add("d-none");
 
@@ -793,8 +843,10 @@ async function updateKeys() {
       loadingEl.className = "alert alert-info";
       loadingEl.innerHTML =
         '<i class="fas fa-spinner fa-spin me-2"></i>Broadcasting transaction... please wait';
-      
-      const stepContainer = document.querySelector(".step-container:not(.d-none)");
+
+      const stepContainer = document.querySelector(
+        ".step-container:not(.d-none)",
+      );
       if (stepContainer) {
         stepContainer.prepend(loadingEl);
       } else {
@@ -888,7 +940,9 @@ async function updateKeys() {
         document
           .getElementById("toggleRawTxBtn")
           .addEventListener("click", function () {
-            const container = document.getElementById("rawTransactionContainer");
+            const container = document.getElementById(
+              "rawTransactionContainer",
+            );
             if (container.classList.contains("show")) {
               container.classList.remove("show");
             } else {
@@ -939,39 +993,40 @@ function updateButtonState() {
   if (keysDownloaded) {
     // Show the update button only after keys have been downloaded
     updateBtn.classList.remove("d-none");
-    
+
     // Change download button appearance to show it's been completed
     downloadBtn.classList.remove("btn-info");
     downloadBtn.classList.add("btn-success");
     downloadBtn.innerHTML = '<i class="fas fa-check me-1"></i>Keys Downloaded';
-    
+
     // Remove any warning messages
     const warningMsg = document.getElementById("downloadWarning");
     if (warningMsg && warningMsg.parentNode) {
       warningMsg.parentNode.removeChild(warningMsg);
     }
-    
+
     // Add a success message
     let successMsg = document.getElementById("downloadSuccess");
     if (!successMsg) {
       successMsg = document.createElement("div");
       successMsg.id = "downloadSuccess";
       successMsg.className = "alert alert-success mb-3";
-      successMsg.innerHTML = 
+      successMsg.innerHTML =
         '<i class="fas fa-check-circle me-2"></i>Keys downloaded! You can now update your account.';
-      
+
       // Insert before the buttons
       buttonContainer.parentNode.insertBefore(successMsg, buttonContainer);
     }
   } else {
     // Hide the update button until keys are downloaded
     updateBtn.classList.add("d-none");
-    
+
     // Reset download button appearance
     downloadBtn.classList.remove("btn-success");
     downloadBtn.classList.add("btn-info");
-    downloadBtn.innerHTML = '<i class="fas fa-download me-1"></i>Download Keys as JSON';
-    
+    downloadBtn.innerHTML =
+      '<i class="fas fa-download me-1"></i>Download Keys as JSON';
+
     // Add warning message about downloading keys
     let warningMsg = document.getElementById("downloadWarning");
     if (!warningMsg) {
@@ -984,7 +1039,7 @@ function updateButtonState() {
       // Insert before the buttons
       buttonContainer.parentNode.insertBefore(warningMsg, buttonContainer);
     }
-    
+
     // Remove any success messages
     const successMsg = document.getElementById("downloadSuccess");
     if (successMsg && successMsg.parentNode) {
@@ -992,8 +1047,6 @@ function updateButtonState() {
     }
   }
 }
-
-
 
 // Show only the specified step and hide others
 function showStep(stepNumber) {
@@ -1016,11 +1069,11 @@ function showError(message) {
   const errorMessage = document.getElementById("errorMessage");
   const successMessage = document.getElementById("successMessage");
   const errorDetails = document.getElementById("errorDetails");
-  
+
   if (errorMessage) errorMessage.classList.remove("d-none");
   if (successMessage) successMessage.classList.add("d-none");
   if (errorDetails) errorDetails.textContent = message;
-  
+
   console.error("Error:", message); // Log error to console as well
 }
 
@@ -1029,14 +1082,14 @@ function startOver() {
   currentAccount = null;
   generatedKeys = null;
   keysDownloaded = false;
-  
+
   // Clear private key storage for security
   privateKeyStorage = {};
   if (keyExpirationTimer) {
     clearTimeout(keyExpirationTimer);
     keyExpirationTimer = null;
   }
-  
+
   document.getElementById("accountName").value = "";
   document.getElementById("ownerWif").value = "";
   generateNewPassword(); // Generate a fresh password
@@ -1047,36 +1100,36 @@ function startOver() {
 function initializeNodeSelector() {
   const nodeList = document.getElementById("nodeList");
   const currentNodeText = document.getElementById("currentNodeText");
-  
+
   // Clear existing items
   nodeList.innerHTML = "";
-  
+
   // Add nodes to dropdown
-  hiveNodes.forEach(node => {
+  hiveNodes.forEach((node) => {
     const li = document.createElement("li");
     const a = document.createElement("a");
     a.className = "dropdown-item";
     a.href = "#";
     a.dataset.nodeUrl = node.url;
-    
+
     // Create status indicator and node name
     a.innerHTML = `<span class="node-name">${node.name}</span> <span class="node-status ms-1"><i class="fas fa-circle"></i></span>`;
-    
+
     // Add click event to change node
-    a.addEventListener("click", function(e) {
+    a.addEventListener("click", function (e) {
       e.preventDefault();
       changeNode(node.url, node.name);
     });
-    
+
     li.appendChild(a);
     nodeList.appendChild(li);
-    
+
     // Check status of this node
     checkNodeItemStatus(node.url, a.querySelector(".node-status"));
   });
-  
+
   // Set initial node text
-  const defaultNode = hiveNodes.find(node => node.url === currentNodeUrl);
+  const defaultNode = hiveNodes.find((node) => node.url === currentNodeUrl);
   if (defaultNode) {
     currentNodeText.textContent = defaultNode.name;
   }
@@ -1087,20 +1140,21 @@ function changeNode(nodeUrl, nodeName) {
   // Update UI first for immediate feedback
   const currentNodeText = document.getElementById("currentNodeText");
   currentNodeText.textContent = nodeName;
-  
+
   // Update status indicator to "checking"
   const nodeStatus = document.getElementById("nodeStatus");
   nodeStatus.className = "node-status ms-1 checking";
-  
+
   // Clear version info while checking
-  document.getElementById("nodeVersionInfo").textContent = "Checking node status...";
-  
+  document.getElementById("nodeVersionInfo").textContent =
+    "Checking node status...";
+
   // Update the current node URL
   currentNodeUrl = nodeUrl;
-  
+
   // Create a new client with the selected node
   client = new dhive.Client([nodeUrl, "https://api.syncad.com"]);
-  
+
   // Check the status of the new node
   checkNodeStatus(nodeUrl);
 }
@@ -1110,20 +1164,20 @@ async function checkNodeItemStatus(nodeUrl, statusElement) {
   try {
     // Create a temporary client for this specific node
     const tempClient = new dhive.Client([nodeUrl]);
-    
+
     // Set status to checking
     statusElement.className = "node-status ms-1 checking";
-    
+
     // Try to get dynamic global properties with a timeout
-    const timeout = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error("Timeout")), 5000)
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Timeout")), 5000),
     );
-    
+
     await Promise.race([
       tempClient.database.getDynamicGlobalProperties(),
-      timeout
+      timeout,
     ]);
-    
+
     // If we get here, the node is online
     statusElement.className = "node-status ms-1 online";
   } catch (error) {
@@ -1136,24 +1190,24 @@ async function checkNodeItemStatus(nodeUrl, statusElement) {
 async function checkNodeStatus(nodeUrl) {
   const nodeStatus = document.getElementById("nodeStatus");
   const nodeVersionInfo = document.getElementById("nodeVersionInfo");
-  
+
   // Set status to checking
   nodeStatus.className = "node-status ms-1 checking";
-  
+
   try {
     // Try to get dynamic global properties with a timeout
-    const timeout = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error("Timeout")), 5000)
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Timeout")), 5000),
     );
-    
+
     const dgpo = await Promise.race([
       client.database.getDynamicGlobalProperties(),
-      timeout
+      timeout,
     ]);
-    
+
     // If we get here, the node is online
     nodeStatus.className = "node-status ms-1 online";
-    
+
     // Try to get version info
     try {
       const config = await client.database.getConfig();
@@ -1166,21 +1220,21 @@ async function checkNodeStatus(nodeUrl) {
       // If we can't get version but node is online
       nodeVersionInfo.textContent = "Connected";
     }
-    
+
     // Update all node statuses in the dropdown
     updateAllNodeStatuses();
-    
+
     return true;
   } catch (error) {
     // Node is offline or timed out
     nodeStatus.className = "node-status ms-1 offline";
     nodeVersionInfo.textContent = "Offline or unavailable";
-    
+
     // Try to switch to a backup node if current one is down
     if (nodeUrl === currentNodeUrl) {
       tryBackupNode();
     }
-    
+
     return false;
   }
 }
@@ -1191,26 +1245,26 @@ async function tryBackupNode() {
   if (document.getElementById("nodeStatus").classList.contains("checking")) {
     return;
   }
-  
+
   // Look for an alternative node
   for (const node of hiveNodes) {
     // Skip the current node that's already failing
     if (node.url === currentNodeUrl) continue;
-    
+
     // Create a temporary client for this node
     const tempClient = new dhive.Client([node.url]);
-    
+
     try {
       // Try to get dynamic global properties with a timeout
-      const timeout = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("Timeout")), 3000)
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Timeout")), 3000),
       );
-      
+
       await Promise.race([
         tempClient.database.getDynamicGlobalProperties(),
-        timeout
+        timeout,
       ]);
-      
+
       // If we get here, we found a working node, switch to it
       console.log(`Switching to backup node: ${node.name}`);
       changeNode(node.url, node.name);
@@ -1220,7 +1274,7 @@ async function tryBackupNode() {
       continue;
     }
   }
-  
+
   // If we get here, all nodes failed
   console.error("All Hive nodes appear to be offline");
 }
@@ -1228,11 +1282,11 @@ async function tryBackupNode() {
 // Update status indicators for all nodes in the dropdown
 function updateAllNodeStatuses() {
   const nodeItems = document.querySelectorAll("#nodeList .dropdown-item");
-  
-  nodeItems.forEach(item => {
+
+  nodeItems.forEach((item) => {
     const nodeUrl = item.dataset.nodeUrl;
     const statusElement = item.querySelector(".node-status");
-    
+
     // Check status of each node
     checkNodeItemStatus(nodeUrl, statusElement);
   });
