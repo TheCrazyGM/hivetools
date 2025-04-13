@@ -1,0 +1,114 @@
+<!doctype html>
+<html>
+  <head>
+    <script src="https://cdn.jsdelivr.net/npm/@hiveio/hive-js/dist/hive.min.js"></script>
+    <script type="text/javascript">
+      function printTransaction(transaction) {
+        var output = document.getElementById("content").innerHTML;
+        if (output.length > 0) {
+          output += "<br><br>";
+        }
+        output += "<b>" + transaction.op[0] + "</b><br>";
+        output += new Date(transaction.timestamp).toISOString() + "<br>";
+        output += "Tx " + transaction.trx_id + "<br>";
+        output +=
+          JSON.stringify(transaction.op[1], null, 2).replaceAll("\n", "<br>") +
+          "<br>";
+        document.getElementById("content").innerHTML = output;
+      }
+
+      function handleTransaction(transaction, text) {
+        if (transaction.trx_id == text) {
+          printTransaction(transaction);
+        } else {
+          var data = transaction.op[1];
+          switch (transaction.op[0]) {
+            case "custom_json":
+              var id = data.id;
+              if (id == "ssc-mainnet-hive") {
+                var json = JSON.parse(data.json);
+                if (
+                  json.contractName == "tokens" &&
+                  json.contractAction == "transfer"
+                ) {
+                  var memo = json.contractPayload.memo;
+                  if (memo && memo.indexOf(text) >= 0) {
+                    printTransaction(transaction);
+                  }
+                }
+              }
+              break;
+            case "transfer":
+              if (data.memo.indexOf(text) >= 0) {
+                printTransaction(transaction);
+              }
+              break;
+          }
+        }
+      }
+
+      function nextHistory(account, text, days, startNumber, maxCount) {
+        if (startNumber != -1 && maxCount > startNumber) {
+          maxCount = startNumber;
+        }
+        hive.api.getAccountHistory(
+          account,
+          startNumber,
+          maxCount,
+          function (err, result) {
+            if (result) {
+              var stop = false;
+              for (var i = result.length - 1; i >= 0; i--) {
+                var date = Date.parse(result[i][1].timestamp);
+                var stopDate = Date.now() - days * 86400000;
+                stop = date < stopDate;
+                if (!stop) {
+                  handleTransaction(result[i][1], text);
+                }
+              }
+              var number = result[0][0];
+              if (!stop && number > 0) {
+                nextHistory(account, text, days, number - 1, maxCount);
+              } else {
+                document.getElementById("message").innerHTML = "";
+                document.getElementById("submit").removeAttribute("disabled");
+              }
+            } else {
+              console.log(err);
+              document.getElementById("message").innerHTML =
+                JSON.stringify(err) + "<br>";
+            }
+          },
+        );
+      }
+
+      function search(form) {
+        var account = form.account.value;
+        var text = form.text.value;
+        var days = form.days.value;
+        if (account.length > 2 && text.length > 3) {
+          document
+            .getElementById("submit")
+            .setAttribute("disabled", "disabled");
+          document.getElementById("message").innerHTML =
+            "Searching for " + text + "<br><br>";
+          document.getElementById("content").innerHTML = "";
+          nextHistory(account, text, days, -1, 100);
+        } else {
+          document.getElementById("message").innerHTML = "Too short text";
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <form onsubmit="search(this); return false;">
+      Account <input type="text" name="account" value="hiveswap" /><br />
+      Search <input type="text" name="text" value="" /><br />
+      Days <input type="text" name="days" value="7" /><br />
+      <input type="submit" id="submit" value="Search for tranfer" />
+    </form>
+    <br />
+    <div id="message"></div>
+    <div id="content"></div>
+  </body>
+</html>
