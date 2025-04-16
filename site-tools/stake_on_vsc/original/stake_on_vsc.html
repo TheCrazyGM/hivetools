@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hive Stake - VSC</title>
+    <style>
+      body {
+        background: linear-gradient(to bottom right, #1e3a8a, #6b7280);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2);
+        width: 280px;
+      }
+
+      h2 {
+        font-size: 22px;
+        font-weight: bold;
+        text-align: center;
+        color: #333;
+        margin-bottom: 20px;
+      }
+
+      .form-group {
+        display: flex;
+        align-items: center;
+        margin-bottom: 15px;
+      }
+
+      label {
+        width: 80px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #444;
+      }
+
+      input {
+        padding: 8px 10px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        width: 180px;
+      }
+
+      input:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+      }
+
+      #activeKey {
+        width: 180px;
+      }
+
+      #amount,
+      #asset {
+        width: 100px;
+      }
+
+      button {
+        width: 100%;
+        background: #2563eb;
+        color: white;
+        padding: 10px;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        margin-top: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      button:hover {
+        background: #1d4ed8;
+        transform: translateY(-2px);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>Stake on VSC</h2>
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" placeholder="Hive username" />
+      </div>
+      <div class="form-group">
+        <label for="activeKey">Active Key</label>
+        <input
+          type="password"
+          id="activeKey"
+          placeholder="Private active key"
+        />
+      </div>
+      <div class="form-group">
+        <label for="amount">Amount</label>
+        <input
+          type="number"
+          id="amount"
+          step="0.001"
+          min="0.001"
+          placeholder="e.g., 0.001"
+        />
+      </div>
+      <div class="form-group">
+        <label for="asset">Asset</label>
+        <input type="text" id="asset" value="hive" placeholder="e.g., hive" />
+      </div>
+      <div class="form-group">
+        <label for="netId">Network ID</label>
+        <input
+          type="text"
+          id="netId"
+          value="vsc-mainnet"
+          placeholder="e.g., vsc-mainnet"
+        />
+      </div>
+      <button onclick="stakeIt()">STAKE it baby!</button>
+    </div>
+
+    <script src="https://unpkg.com/@hiveio/dhive@latest/dist/dhive.js"></script>
+    <script>
+      if (typeof window.dhive === "undefined") {
+        console.error("dhive library not loaded");
+        alert(
+          "Error: dhive library failed to load. Please try refreshing the page or check your browser settings.",
+        );
+        throw new Error("dhive not loaded");
+      }
+
+      const client = new window.dhive.Client("https://api.hive.blog");
+
+      function stakeIt() {
+        const username = document.getElementById("username").value.trim();
+        const activeKey = document.getElementById("activeKey").value.trim();
+        const amount = parseFloat(
+          document.getElementById("amount").value,
+        ).toFixed(3);
+        const asset = document.getElementById("asset").value.trim();
+        const netId = document.getElementById("netId").value.trim();
+
+        if (!username || !activeKey || !amount || !asset || !netId) {
+          console.warn("Validation failed: Missing required fields");
+          alert("Please fill in all fields.");
+          return;
+        }
+
+        const jsonPayload = JSON.stringify({
+          from: `hive:${username}`,
+          to: `hive:${username}`,
+          amount: amount,
+          asset: asset,
+          net_id: netId,
+        });
+
+        const customJsonOp = [
+          {
+            required_auths: [username],
+            required_posting_auths: [],
+            id: "vsc.consensus_stake",
+            json: jsonPayload,
+          },
+        ];
+
+        console.log("Broadcasting custom JSON:", customJsonOp);
+
+        let privateKey;
+        try {
+          privateKey = window.dhive.PrivateKey.fromString(activeKey);
+        } catch (err) {
+          console.error("Private key error:", err);
+          alert(
+            "Error: Invalid private key - " +
+              (err.message || "Network ID mismatch or malformed key"),
+          );
+          return;
+        }
+
+        client.broadcast
+          .json(
+            {
+              required_auths: [username],
+              required_posting_auths: [],
+              id: "vsc.consensus_stake",
+              json: jsonPayload,
+            },
+            privateKey,
+          )
+          .then((result) => {
+            console.log("Broadcast success:", result);
+            alert("Successfully staked " + amount + " " + asset + "!");
+          })
+          .catch((err) => {
+            console.error("Broadcast error:", err);
+            alert("Error staking: " + (err.message || "Unknown error"));
+          });
+      }
+    </script>
+  </body>
+</html>
