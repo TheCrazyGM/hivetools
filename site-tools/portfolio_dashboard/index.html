@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hive Portfolio Dashboard</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@hiveio/dhive/dist/dhive.min.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Hive Portfolio Dashboard</h1>
+      <form id="dashboardForm">
+        <label for="username">Hive Username</label>
+        <input type="text" id="username" placeholder="e.g., alice" required />
+        <button type="submit">Fetch Portfolio</button>
+      </form>
+      <div id="status"></div>
+      <div id="portfolio"></div>
+    </div>
+    <script src="script.js"></script>
+  </body>
+</html>
+
