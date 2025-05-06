@@ -47,10 +47,17 @@ function stakeIt() {
     from: `hive:${username}`,
     to: `hive:${username}`, // Staking to self
     amount: amountString,
-    asset: asset,
+    asset: asset.toLowerCase(),
     net_id: netId,
   });
-  const customJsonId = "vsc.consensus_stake"; // The ID for the custom JSON operation
+  
+  // Set the appropriate custom JSON ID based on the selected asset
+  let customJsonId;
+  if (asset.toLowerCase() === 'hbd') {
+    customJsonId = 'vsc.stake_hbd';
+  } else {
+    customJsonId = 'vsc.consensus_stake'; // Default for HIVE
+  }
   console.log("Requesting Custom JSON via Keychain:");
   console.log("ID:", customJsonId);
   console.log("Username:", username);
